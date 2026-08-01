@@ -1,0 +1,721 @@
+% !TEX program = xelatex
+% 电子版论文: 无需承诺书与编号页, 摘要页为第一页(符合2026年格式规范第十条), 使用 withoutpreface。
+% 纸质版论文: 需承诺书+编号专用页+摘要页, 把下面一行改为:
+%   \documentclass[bwprint]{cumcmthesis}
+\documentclass[withoutpreface]{cumcmthesis}
+
+% ==================== 封面与编号信息 ====================
+\title{快充策略对锂离子电池寿命衰减的影响\\——数据整理、量化建模、寿命预测与策略优化}
+\tihao{B}
+\baominghao{000000000000}
+\schoolname{XX大学}
+\membera{姓名A}
+\memberb{姓名B}
+\memberc{姓名C}
+\supervisor{指导教师}
+\yearinput{2026}
+\monthinput{08}
+\dayinput{01}
+
+% 代码清单中的中文注释字体设置（与正文字体一致，防止中文显示为方块）
+\lstset{basicstyle=\small\ttfamily\song}
+% 等宽字体回退: 支持 ≈ ∈ 等符号 (Windows 上若无 DejaVu 则沿用默认)
+\IfFontExistsTF{DejaVu Sans Mono}{\setmonofont{DejaVu Sans Mono}}{}
+
+\begin{document}
+
+% 电子版提交时不要承诺书与编号页(withoutpreface 已跳过)，\maketitle 生成标题
+\maketitle
+
+\begin{abstract}
+本文基于 MIT--Stanford 公开锂离子电池循环老化数据集，围绕"快充策略--充电时间--寿命衰减"的定量关系，依次完成数据整理、量化建模、寿命预测与策略优化四项递进任务。
+
+对于问题一，系统整理了 140 个 A123 18650 磷酸铁锂电池的充电策略参数（第一阶段倍率 $C_1$、切换 SOC $Q_1$、第二阶段倍率 $C_2$）、循环寿命、SOH 衰减曲线与充电时间，完成异常循环清洗、格式归一化与协议类型区分；寿命分布跨度达 13 倍（148--1935），并识别出典型长寿命策略（$C_2\le 4$C）与短寿命策略（$C_2\ge 5.5$C）。
+
+对于问题二，建立 $\log_{10}$ 寿命与策略参数的多变量回归模型及"SOC 剂量"模型，量化各因素贡献：第二阶段倍率 $C_2$ 是寿命衰减的主导因素（含批次效应标准化系数 $-0.037$，偏相关 $-0.243$）；单位高倍率电量在中高 SOC 区间的寿命损伤比低 SOC 区间高约 27\%（$m_2$ 系数 $-0.213$ vs $m_1$ $-0.167$），验证了不同 SOC 区间高倍率影响的显著差异。
+
+对于问题三，从早期循环提取 SOH 衰减率、波动、充电时间漂移等特征，建立梯度提升寿命预测模型，5 折$\times$8 次重复交叉验证下以前 20 个循环预测寿命的 MAPE 达 15.9\%（$R^2=0.73$）；特征重要性分析表明充电时间波动与 SOH 残差波动为主导特征，近中期 SOH 预测误差小于 1.2\%。
+
+对于问题四，构建校准的充电时间模型与剂量型寿命响应面，在实验覆盖的合理邻域内做多目标网格寻优得到 Pareto 前沿，膝点对应策略为 3.6C(80\%)-3.6C（充电时间 13.5 min、预测寿命 1043、数据实测 1182），更快备选为 4C(80\%)-4C（12.6 min、实测 1226），两者均为数据已验证的优解，同时给出了外推风险边界。
+
+\keywords{锂离子电池\quad 快速充电\quad 循环寿命\quad SOC 区间\quad 剂量模型\quad 寿命预测\quad Pareto 优化}
+\end{abstract}
+
+% ==================== 一、问题重述 ====================
+\section{问题重述}
+
+锂离子电池在循环使用过程中可用容量逐渐下降，通常以健康状态 $\mathrm{SOH}=Q_{\mathrm{current}}/Q_{\mathrm{initial}}\times100\%$ 表征老化程度，当 SOH 降至 80\% 时认为达到寿命终止条件。快充能显著缩短补能时间，但较高充电电流会加剧极化、热效应与副反应，加快容量衰减。不同 SOC 区间内电池对充电电流的敏感程度不同：低 SOC 区间采用较大电流有助于缩短充电时间，而中高 SOC 区间继续高倍率充电则可能加剧老化。
+
+本数据集为 MIT--Stanford 公开锂离子电池循环老化数据集，含 140 个 A123 18650 磷酸铁锂电池（额定容量 1.1 Ah），分三个批次。充电采用分段快充策略，可表示为：先以 $C_1$ 倍率从 0\% SOC 充电至 $Q_1$，再以 $C_2$ 倍率从 $Q_1$ 充电至 80\% SOC，最后以 1C 恒流--恒压（CC-CV）模式充电至满电。不同电池的差异主要体现于 $C_1$、$Q_1$、$C_2$ 三个参数。
+
+需要解决以下四个问题：
+\begin{enumerate}
+\item 对原始循环实验数据进行整理，提取各电池的充电策略、充电时间、SOH 变化及循环寿命等关键信息；给出典型长寿命策略和短寿命策略，并从充电倍率、SOC 区间和充电时间角度进行初步解释。
+\item 建立充电策略参数与电池寿命衰减之间的定量关系模型，重点分析不同 SOC 区间内充电电流倍率对寿命的影响，量化 $C_1$、$Q_1$、$C_2$ 及充电时间的贡献，并给出各因素及交互作用的影响程度排序。
+\item 基于给定快充策略下电池早期循环数据，建立寿命预测模型，预测电池未来 SOH 衰减趋势或达到寿命终止条件时的循环次数，并讨论早期循环长度与策略参数的作用。
+\item 设计兼顾充电时间与寿命衰减的快充策略优化方法，给出推荐策略，并与典型长寿命、短寿命策略对比，说明其合理性、适用范围和可能的外推风险。
+\end{enumerate}
+
+% ==================== 二、问题分析 ====================
+\section{问题分析}
+
+问题一的核心是数据整理与规律初探：需先解析三段式快充策略参数、校准充电时间单位、清洗异常循环，再对寿命分布做分批次统计，并从多参数角度解释长短寿命差异。
+
+问题二的核心是因果量化：寿命跨度达 13 倍，需用回归模型解耦 $C_1$、$Q_1$、$C_2$、充电时间的贡献。考虑到实验设计存在混杂与批次效应，采用含批次虚拟变量的多变量回归，并构造"SOC 剂量"变量 $m_1=C_1Q_1/100$、$m_2=C_2(80-Q_1)/100$ 直接检验不同 SOC 区间高倍率影响的差异。
+
+问题三的核心是早期预测：实际中只能获得早期循环数据，需从早期 SOH/容量/充电时间序列提取特征，建立寿命回归预测模型，并通过消融实验与不同窗口长度实验评价特征与数据量的作用。
+
+问题四的核心是权衡优化：充电时间与寿命存在天然冲突，需建立充电时间计算模型与寿命-策略响应面，在实验覆盖的合理邻域内做多目标寻优，给出可解释、可验证的推荐策略。
+
+四个问题逐层递进，形成"整理 $\rightarrow$ 量化 $\rightarrow$ 预测 $\rightarrow$ 优化"的完整链条，前一问题的输出作为后一问题的输入。
+
+% ==================== 三、模型假设 ====================
+\section{模型假设}
+
+\begin{enumerate}
+\item 各电池初始状态一致，SOH 以首循环放电容量为基准归一化；80\% SOH 为寿命终止（EOL）阈值。
+\item 充电时间定义为快充段（0$\sim$80\% SOC）耗时，不含 80\%$\sim$100\% 的 CC-CV 补电阶段。
+\item 批次内环境（温度、夹具、工艺）条件一致；批次间差异通过批次效应项吸收，不假定批次间可互换。
+\item 不同 SOC 区间的高倍率充电对老化的贡献具有可加性（剂量叠加假设），且效应在观测参数范围内近似线性。
+\item 优化仅在实验覆盖的参数水平及其合理邻域内进行，不向未经验证的高倍率或 SOC 区间外推。
+\end{enumerate}
+
+% ==================== 四、符号说明 ====================
+\section{符号说明}
+
+\begin{table}[H]
+\centering
+\caption{主要符号说明}
+\label{tab:symbol}
+\begin{tabular}{cll}
+\toprule
+符号 & 含义 & 单位 \\
+\midrule
+$C_1$ & 第一阶段充电倍率 & C \\
+$Q_1$ & 第一阶段结束（切换）时的 SOC & \% \\
+$C_2$ & 第二阶段充电倍率 & C \\
+$T_{80}$ & 快充段（0$\sim$80\% SOC）充电时间 & min \\
+$\mathrm{SOH}$ & 健康状态（容量保持率） & \% \\
+$L$ & 循环寿命（cycle\_life） & 循环 \\
+$m_1$ & 低 SOC 区间高倍率电量剂量 $=C_1Q_1/100$ & Ah \\
+$m_2$ & 中高 SOC 区间高倍率电量剂量 $=C_2(80-Q_1)/100$ & Ah \\
+$k$ & 早期循环窗口长度 & 循环 \\
+MAPE & 平均绝对百分比误差 & \% \\
+$R^2$ & 决定系数 & 无量纲 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+% ==================== 五、数据整理与预处理 ====================
+\section{数据整理与预处理}
+
+\subsection{数据来源与结构}
+
+原始数据为三个 MATLAB v7.3（HDF5）文件，对应三个实验批次，共 140 个电池，见表 \ref{tab:data}。每个电池包含策略字符串（policy\_readable）、循环寿命标签（cycle\_life）、逐循环汇总（放电容量、内阻、温度、充电时间）与逐循环电流/电压时序。
+
+\begin{table}[htbp]
+\centering
+\caption{数据集构成}
+\label{tab:data}
+\begin{tabular}{cccc}
+\toprule
+批次 & 电池数 & 充电策略范围 & 协议类型 \\
+\midrule
+data\_1（2017-05） & 46 & 3.6C$\sim$8C & 标准 \\
+data\_2（2018-04） & 48 & 1C$\sim$6C（激进攻略居多） & 标准 \\
+data\_3（2018-08） & 46 & 3.7C$\sim$5.9C & newstructure \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{关键提取与清洗}
+
+\textbf{（1）策略参数解析。}从策略字符串 \texttt{C1C(Q1\%)-C2C} 正则提取 $C_1$、$Q_1$、$C_2$，处理了两类格式异常：截断型（如 \texttt{80\%)-3.6C}，参考电池）依据充电时间反推 $C_1=C_2$；缺单位型（如 \texttt{4C(31\%)-5}）容错解析。
+
+\textbf{（2）协议类型区分。}经核对批次 3 电流曲线，其策略字符串中的第二个倍率实际为放电倍率，充电阶段为"$C_1$ 充至 $Q_1$，后接 1C CC-CV"，与批次 1、2 不同，故单独标记为 newstructure 协议。
+
+\textbf{（3）异常循环清洗。}个别循环放电容量相对前值突变超过 20\%（如 data\_1\_cell0 循环 11 出现 SOH$\approx$143\% 的跳变），判定为测量异常并剔除。
+
+\textbf{（4）缺失处理。}2 个电池（data\_3\_cell23、data\_3\_cell32）的 cycle\_life 为 NaN（实验未完成），在监督分析中剔除。
+
+\textbf{（5）充电时间单位校准。}依据"充电至 80\% SOC 的理论时间"验证，确认单位均为分钟（如 3.6C(80\%) 理论 $0.8/3.6\times60=13.33$ min，实测 13.34 min），并确认充电时间对应快充段（0$\sim$80\% SOC）耗时。
+
+整理后的电池级汇总表节选见表 \ref{tab:battery}。
+
+\begin{table}[htbp]
+\centering
+\caption{电池级汇总表（节选）}
+\label{tab:battery}
+\begin{tabular}{cccccccc}
+\toprule
+电池 & 批次 & 策略 & $C_1$(C) & $Q_1$(\%) & $C_2$(C) & 循环寿命 & 充电时间(min) \\
+\midrule
+data\_1\_cell00 & data\_1 & 3.6C(80\%)-3.6C & 3.6 & 80 & 3.6 & 1190 & 13.4 \\
+data\_1\_cell03 & data\_1 & 4C(80\%)-4C & 4.0 & 80 & 4.0 & 1226 & 12.2 \\
+data\_2\_cell00 & data\_2 & 1C(4\%)-6C & 1.0 & 4 & 6.0 & 300 & 12.8 \\
+data\_2\_cell01 & data\_2 & 2C(10\%)-6C & 2.0 & 10 & 6.0 & 148 & 12.5 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+% ==================== 六、问题一 ====================
+\section{问题一：寿命分布统计与典型策略分析}
+
+\subsection{寿命分布统计}
+
+全部 138 个有效电池的循环寿命分布见表 \ref{tab:life-dist}，分布直方图见图 \ref{fig:fig1}。寿命跨度达 13 倍，说明充电策略对寿命具有极显著影响。
+
+\begin{table}[htbp]
+\centering
+\caption{寿命总体分布}
+\label{tab:life-dist}
+\begin{tabular}{ccccccc}
+\toprule
+统计量 & 最小值 & 25\%分位 & 中位数 & 75\%分位 & 最大值 & 样本数 \\
+\midrule
+值 & 148 & 500 & 787 & 987 & 1935 & 138 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.95\textwidth]{figures/fig1.png}
+\caption{各批次循环寿命分布直方图}
+\label{fig:fig1}
+\end{figure}
+
+三个批次寿命分布差异显著（表 \ref{tab:batch-dist}）：批次 2 整体寿命最短（中位数 483），因其实验设计集中于高倍率激进攻略（$C_2$ 多在 4$\sim$6C）；批次 3（newstructure）整体寿命最长（中位数 1006）。由于三个批次策略参数空间与环境条件不完全一致，后续策略间比较优先在同一批次内进行。
+
+\begin{table}[htbp]
+\centering
+\caption{各批次寿命分布}
+\label{tab:batch-dist}
+\begin{tabular}{cccccc}
+\toprule
+批次 & n & min & 中位数 & max & 均值 \\
+\midrule
+data\_1 & 46 & 534 & 858 & 1227 & 845 \\
+data\_2 & 48 & 148 & 483 & 1061 & 495 \\
+data\_3 & 44 & 541 & 1006 & 1935 & 1060 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{典型长寿命与短寿命策略识别}
+
+对 standard 协议（批次 1+2）各策略的寿命进行统计，按平均寿命排序，选取典型长寿命（前 5）与短寿命（后 5）策略，结果见表 \ref{tab:long}、表 \ref{tab:short}，其 SOH 衰减曲线见图 \ref{fig:fig3}。
+
+\begin{table}[htbp]
+\centering
+\caption{典型长寿命策略}
+\label{tab:long}
+\begin{tabular}{ccccccc}
+\toprule
+策略 & 电池数 & 平均寿命 & $C_1$(C) & $Q_1$(\%) & $C_2$(C) & 充电时间(min) \\
+\midrule
+4C(80\%)-4C & 2 & 1226 & 4.0 & 80 & 4.0 & 12.2 \\
+3.6C(80\%)-3.6C & 3 & 1182 & 3.6 & 80 & 3.6 & 13.4 \\
+4.4C(80\%)-4.4C & 1 & 1074 & 4.4 & 80 & 4.4 & 11.6 \\
+8C(15\%)-3.6C & 2 & 1008 & 8.0 & 15 & 3.6 & 12.5 \\
+5.4C(40\%)-3.6C & 2 & 966 & 5.4 & 40 & 3.6 & 11.4 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}[htbp]
+\centering
+\caption{典型短寿命策略}
+\label{tab:short}
+\begin{tabular}{ccccccc}
+\toprule
+策略 & 电池数 & 平均寿命 & $C_1$(C) & $Q_1$(\%) & $C_2$(C) & 充电时间(min) \\
+\midrule
+2C(10\%)-6C & 1 & 148 & 2.0 & 10 & 6.0 & 12.5 \\
+1C(4\%)-6C & 1 & 300 & 1.0 & 4 & 6.0 & 12.8 \\
+2C(7\%)-5.5C & 1 & 335 & 2.0 & 7 & 5.5 & 12.2 \\
+5.6C(65\%)-3C & 1 & 429 & 5.6 & 65 & 3.0 & 12.1 \\
+80\%)-4C（参考） & 2 & 346 & 4.0 & 80 & 4.0 & 13.0 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.8\textwidth]{figures/fig3.png}
+\caption{典型长/短寿命电池 SOH 衰减曲线（批次 1）}
+\label{fig:fig3}
+\end{figure}
+
+\subsection{差异机理解释}
+
+对 standard 协议 94 个电池计算循环寿命与各参数的 Pearson 相关系数（表 \ref{tab:corr}，偏回归关系见图 \ref{fig:fig2} 与图 \ref{fig:fig4}）。
+
+\begin{table}[htbp]
+\centering
+\caption{cycle\_life 与各参数相关系数}
+\label{tab:corr}
+\begin{tabular}{ccccc}
+\toprule
+参数 & $C_1$ & $Q_1$ & $C_2$ & 充电时间(min) \\
+\midrule
+相关系数 $r$ & 0.211 & 0.346 & -0.556 & 0.109 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.95\textwidth]{figures/fig2.png}
+\caption{cycle\_life 与各策略参数关系（standard 批次）}
+\label{fig:fig2}
+\end{figure}
+
+\begin{enumerate}
+\item \textbf{$C_2$ 是寿命衰减的主导因素（$r=-0.556$）。}第二阶段充电覆盖从 $Q_1$ 到 80\% SOC 的中高电量区间，该区间内负极电位更接近析锂电位，高倍率充电会显著加剧负极析锂与电解液分解。短寿命策略（如 1C(4\%)-6C、2C(10\%)-6C）的共同特征正是 $C_2\ge5.5$C。
+\item \textbf{$C_1$ 的影响相对温和（$r=0.211$）。}第一阶段发生在低 SOC 区间，负极嵌锂位点充足、析锂风险低，短暂高倍率冲击可耐受。例如 8C(15\%)-3.6C 虽 $C_1$ 高达 8C，但因仅持续到 15\% SOC 即切换至温和的 3.6C，寿命仍达约 1000。需注意 $C_1$ 与 $Q_1$ 在实验设计中存在混杂，单变量相关不能完全反映 $C_1$ 的独立效应。
+\item \textbf{$Q_1$ 的影响需结合 $C_1$ 解释。}$Q_1$ 决定高倍率第一阶段的作用时长。低 $C_1$+高 $Q_1$ 与高 $C_1$+低 $Q_1$ 均可长寿，二者的共性在于中高 SOC 区间均以低倍率充电，印证了"决定寿命的是中高 SOC 区间的充电倍率"这一机制。
+\item \textbf{充电时间影响微弱（$r=0.109$）。}各策略充电至 80\% SOC 的时间差异不大（约 10$\sim$14 min），而寿命差异达 13 倍，说明单纯的充电速度快慢不是寿命差异的来源，充电电流在 SOC 轴上的分布方式才是关键。
+\end{enumerate}
+
+\textbf{批次效应说明。}名义相同的策略在不同批次间寿命差异显著：4C(80\%)-4C 在批次 1 中寿命为 1226，而批次 2 的参考电池 80\%)-4C 仅为 209/483。这表明批次间存在系统性环境/工艺差异，故策略横向比较应优先采用同批次数据。
+
+% ==================== 七、问题二 ====================
+\section{问题二：充电策略参数对寿命衰减影响的量化模型}
+
+\subsection{多变量回归模型}
+
+基于 94 个 standard 电池，以 $\log_{10}$（循环寿命）为因变量，建立含批次效应的多变量线性回归：
+\begin{equation}\label{eq:reg}
+\log_{10}(L) = \beta_0 + \beta_1 C_1 + \beta_2 Q_1 + \beta_3 C_2 + \beta_4 T_{80} + \beta_5 \mathbb{1}_{\mathrm{batch2}} + \varepsilon.
+\end{equation}
+标准化（Z-score）回归结果见表 \ref{tab:reg}。模型 $R^2=0.624$（不含批次为 0.377），批次效应吸收了约 0.25 的 $R^2$。
+
+\begin{table}[htbp]
+\centering
+\caption{多变量回归结果（含批次效应，$n=94$，$R^2=0.624$）}
+\label{tab:reg}
+\begin{tabular}{ccccc}
+\toprule
+变量 & 标准化系数 $\beta$ & 标准误 & $t$ & $p$ 值 \\
+\midrule
+$C_1$（第一阶段倍率） & $-0.009$ & 0.015 & $-0.59$ & 0.556 \\
+$Q_1$（切换 SOC） & $+0.016$ & 0.012 & 1.38 & 0.171 \\
+$C_2$（第二阶段倍率） & $-0.037$ & 0.016 & $-2.35$ & 0.021 \\
+充电时间 $T_{80}$ & $+0.025$ & 0.012 & 2.03 & 0.045 \\
+批次 2 效应 & $-0.106$ & 0.014 & $-7.61$ & $<0.0001$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+未含批次效应的原始尺度模型为
+\begin{equation}\label{eq:reg-raw}
+\log_{10}(L) = 3.007 + 0.0085 C_1 + 0.0012 Q_1 - 0.0928 C_2 + 0.0057 T_{80},\quad R^2=0.377.
+\end{equation}
+结果显示：$C_2$ 每提高 1C，$\log_{10}$ 寿命约下降 0.093（寿命约衰减 19\%），为负向效应最显著的策略参数；充电时间 $T_{80}$ 在控制 $C_2$ 后呈正向（充电越温和寿命越长）；$C_1$、$Q_1$ 在含批次模型中不再显著，源于其与批次/剂量结构的混杂。
+
+\subsection{各因素贡献排序与偏相关分析}
+
+采用"留一变量 $R^2$ 变化"评估相对重要性（表 \ref{tab:imp}）。各策略参数的 $\Delta R^2$ 排序为：$C_2$（0.024）$>$ $T_{80}$（0.018）$>$ $Q_1$（0.008）$>$ $C_1$（0.001），批次效应占 0.248。偏相关系数（控制其余变量与批次）同样显示 $C_2$（$-0.243$）与 $T_{80}$（$+0.212$）为最重要的策略维度（图 \ref{fig:fig4}）。
+
+\begin{table}[htbp]
+\centering
+\caption{因素相对重要性（$\Delta R^2$ 与偏相关）}
+\label{tab:imp}
+\begin{tabular}{ccc}
+\toprule
+因素 & $\Delta R^2$ & 偏相关系数 \\
+\midrule
+批次 2 & 0.248 & $-0.630$ \\
+$C_2$ & 0.024 & $-0.243$ \\
+充电时间 $T_{80}$ & 0.018 & $+0.212$ \\
+$Q_1$ & 0.008 & $+0.146$ \\
+$C_1$ & 0.001 & $-0.063$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.95\textwidth]{figures/fig4.png}
+\caption{偏回归图（控制其他变量与批次后，各参数与寿命的关系）}
+\label{fig:fig4}
+\end{figure}
+
+\subsection{不同 SOC 区间高倍率影响的差异（剂量模型）}\label{sec:dose}
+
+为直接检验"不同 SOC 区间高倍率充电影响是否有差异"，定义两个高倍率电量剂量：
+\begin{equation}\label{eq:dose}
+m_1 = \frac{C_1\cdot Q_1}{100}\ \text{（低 SOC 区间剂量）},\qquad
+m_2 = \frac{C_2\cdot (80-Q_1)}{100}\ \text{（中高 SOC 区间剂量）}.
+\end{equation}
+建立 $\log_{10}(L)\sim m_1+m_2$ 回归（表 \ref{tab:dose-reg}）。结果表明：两个剂量的系数均为显著负值，高倍率充电电量越多、寿命越短；且 $m_2$ 的单位伤害更大——原始系数 $m_2=-0.213$ vs $m_1=-0.167$，即在中高 SOC 区间每注入 1 Ah 高倍率电量的寿命损伤比低 SOC 区间高约 27\%；加入批次效应后模型 $R^2$ 升至 0.740。策略参数空间上的寿命响应面见图 \ref{fig:fig5}。
+
+\begin{table}[htbp]
+\centering
+\caption{SOC 剂量模型回归（$n=94$）}
+\label{tab:dose-reg}
+\begin{tabular}{cccc}
+\toprule
+变量 & 原始系数 & 标准化系数 $\beta$ & $p$ 值 \\
+\midrule
+截距 & 3.500 & --- & --- \\
+$m_1$（低 SOC 剂量） & $-0.167$ & $-0.189$ & 0.0002 \\
+$m_2$（中高 SOC 剂量） & $-0.213$ & $-0.257$ & $<0.0001$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.95\textwidth]{figures/fig5.png}
+\caption{策略参数空间上的寿命预测（$C_2=3.6$ 与 6.0C 响应面）}
+\label{fig:fig5}
+\end{figure}
+
+\subsection{交互作用分析}
+
+在回归中引入交互项（表 \ref{tab:interact}）：$C_1\times Q_1$ 显著为负（$-0.0026$，$p<0.0001$），反映低 SOC 高倍率剂量的累积伤害；$C_2\times Q_1$ 显著为正（$+0.0052$，$p<0.0001$），因 $Q_1$ 越大、第二阶段覆盖区间（$80-Q_1$）越小、$C_2$ 暴露越短，从交互角度印证 $C_2$ 的伤害与其中高 SOC 覆盖量成正比。
+
+\begin{table}[htbp]
+\centering
+\caption{交互项回归（$n=94$，$R^2=0.598$）}
+\label{tab:interact}
+\begin{tabular}{ccc}
+\toprule
+变量 & 系数 & $p$ 值 \\
+\midrule
+$C_1$ & $-0.017$ & 0.465 \\
+$Q_1$ & $-0.012$ & 0.051 \\
+$C_2$ & $-0.426$ & $<0.0001$ \\
+充电时间 $T_{80}$ & $-0.054$ & 0.002 \\
+$C_1\times Q_1$ & $-0.0026$ & $<0.0001$ \\
+$C_2\times Q_1$ & $+0.0052$ & $<0.0001$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{批次内稳健性}
+
+分批次回归（表 \ref{tab:within-batch}）：批次 1 内 $C_1$、$Q_1$ 显著为负（该批次 $C_2$ 多在 3.0$\sim$3.6C、变化小，$C_2$ 效应不被识别），说明在 $C_2$ 温和前提下，延长第一阶段高倍率（增大 $C_1$ 或 $Q_1$）同样缩短寿命；批次 2 内各参数均不显著（策略空间集中）。因此，在完整策略参数空间中 $C_2$ 主导；在 $C_2$ 固定温和的批次内，$C_1$、$Q_1$ 成为主要调节因素。
+
+\begin{table}[htbp]
+\centering
+\caption{批次内标准化回归系数}
+\label{tab:within-batch}
+\begin{tabular}{cccccc}
+\toprule
+批次 & $C_1$ & $Q_1$ & $C_2$ & $R^2$ & $n$ \\
+\midrule
+data\_1 & $-0.133^{\ast\ast\ast}$ & $-0.094^{\ast\ast\ast}$ & $-0.007$ & 0.617 & 46 \\
+data\_2 & $+0.019$ & $+0.019$ & $-0.026$ & 0.165 & 48 \\
+\bottomrule
+\end{tabular}
+\end{table}
+注：$\ast\ast\ast$ 表示 $p<0.0001$。
+
+% ==================== 八、问题三 ====================
+\section{问题三：基于早期循环数据的寿命预测模型}
+
+\subsection{特征提取}
+
+基于逐循环放电容量（Qd）、SOH 与充电时间序列，对每个电池在前 $k$ 个循环窗口（$k=5/10/20/50/100$）内提取三类特征：
+\begin{enumerate}
+\item \textbf{早期衰减特征}：$k$ 处 SOH（$SOH_k$）与容量损失（$100-SOH_k$）、SOH 线性拟合斜率及其 $R^2$、SOH/容量残差与一阶差分标准差、容量斜率；
+\item \textbf{充电时间特征}：首循环充电时间、$k$ 处充电时间、充电时间斜率、一阶差分标准差与漂移量；
+\item \textbf{潜伏时间特征}：SOH 首次低于阈值（99.9/99.8/$\cdots$/96\%）的循环序号（窗口内未达到则记截断值）。
+\end{enumerate}
+另将策略参数（$C_1,Q_1,C_2$、平均充电时间）作为可用特征，用于消融分析。
+
+\subsection{预测模型与评估方法}
+
+以 $\log_{10}$（循环寿命）为目标，比较三种模型：Ridge 回归、随机森林（RF）与梯度提升回归树（GBM）。采用 5 折$\times$8 次重复交叉验证，以平均绝对百分比误差（MAPE，基于反变换寿命）与 $\log_{10}$ 尺度 $R^2$ 评价。
+
+\subsection{不同早期窗口长度的影响}
+
+表 \ref{tab:window} 与图 \ref{fig:fig7} 给出各窗口的预测精度。随早期数据从 5 循环增加到 20 循环，GBM 的 MAPE 由 18.2\% 降至 15.9\%；继续增至 100 循环精度反而略降（17.0\%），因更多循环引入了逐循环测量噪声与个体差异化轨迹。$k=20$ 为预测精度与数据成本的最佳折衷。
+
+\begin{table}[htbp]
+\centering
+\caption{不同早期窗口长度下的预测误差（5 折$\times$8 重复 CV）}
+\label{tab:window}
+\begin{tabular}{ccccc}
+\toprule
+窗口 $k$ & Ridge MAPE(\%) & RF MAPE(\%) & GBM MAPE(\%) & GBM $R^2$ \\
+\midrule
+5 & 21.0 & 19.2 & 18.2 & 0.655 \\
+10 & 18.8 & 18.3 & 18.0 & 0.666 \\
+20 & 16.3 & 16.8 & 15.9 & 0.731 \\
+50 & 16.8 & 17.0 & 16.0 & 0.734 \\
+100 & 18.1 & 18.2 & 17.0 & 0.713 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.75\textwidth]{figures/fig7.png}
+\caption{预测误差随早期数据长度变化}
+\label{fig:fig7}
+\end{figure}
+
+$k=100$ 时 GBM 的交叉验证预测--实测散点见图 \ref{fig:fig6}：绝大多数样本落在 $\pm10\%$ 误差带内，$R^2=0.71$。
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.75\textwidth]{figures/fig6.png}
+\caption{早期 100 循环预测寿命 vs 实际寿命（GBM，交叉验证）}
+\label{fig:fig6}
+\end{figure}
+
+\subsection{特征重要性分析与消融实验}
+
+特征组合消融（表 \ref{tab:ablation}，$k=100$）：仅早期衰减特征 MAPE=18.4\%，仅策略参数 MAPE=23.2\%，二者联合 MAPE=17.0\%。早期衰减特征携带主要预测信息，策略参数提供补充。
+
+\begin{table}[htbp]
+\centering
+\caption{特征组合消融（$k=100$，GBM）}
+\label{tab:ablation}
+\begin{tabular}{ccc}
+\toprule
+特征组合 & MAPE(\%) & $R^2$ \\
+\midrule
+仅早期衰减特征 & 18.4 & 0.678 \\
+仅策略参数 & 23.2 & 0.490 \\
+早期特征 + 策略参数 & 17.0 & 0.713 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+GBM 特征重要性（图 \ref{fig:fig8}）显示，充电时间波动（0.26）、首循环充电时间（0.19）与 SOH 残差波动（0.12）为主导特征，均刻画早期衰减信号，与利用早期容量波动预测寿命的经典思路一致。
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.75\textwidth]{figures/fig8.png}
+\caption{寿命预测特征重要性（$k=100$，GBM）}
+\label{fig:fig8}
+\end{figure}
+
+\subsection{未来 SOH 轨迹预测}
+
+以 $k=20$ 特征预测里程碑循环（$t=200/400/600/800/1000$）的 SOH（表 \ref{tab:traj}）。近中期预测准确（$t\le400$ 时 MAE$\le1.2\%$），长期预测误差增大（$t\ge800$ 时 $R^2\approx0.1$），表明早期数据能可靠刻画近期衰减趋势，而长期 SOH 存在不可约不确定性。实际部署时可用早期数据给出寿命点估计，并随数据积累滚动更新。
+
+\begin{table}[htbp]
+\centering
+\caption{里程碑 SOH 预测精度（$k=20$ 特征）}
+\label{tab:traj}
+\begin{tabular}{cccc}
+\toprule
+里程碑循环 $t$ & $R^2$ & MAE(SOH\%) & 样本数 \\
+\midrule
+200 & 0.611 & 0.46 & 136 \\
+400 & 0.707 & 1.17 & 133 \\
+600 & 0.404 & 1.83 & 91 \\
+800 & 0.123 & 3.11 & 65 \\
+1000 & 0.144 & 4.00 & 33 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.95\textwidth]{figures/fig9.png}
+\caption{代表性电池实际 SOH 轨迹与前 20 循环数据}
+\label{fig:fig9}
+\end{figure}
+
+% ==================== 九、问题四 ====================
+\section{问题四：兼顾充电时间与寿命衰减的策略优化模型}
+
+\subsection{充电时间模型}
+
+充电时间为快充段（0$\sim$80\% SOC）耗时。理想物理模型为
+\begin{equation}\label{eq:T-ideal}
+T_{80} = 60\cdot\frac{Q_1/100}{C_1} + 60\cdot\frac{(80-Q_1)/100}{C_2}\ \text{min}.
+\end{equation}
+实测数据显示高倍率下因电压限流导致实际耗时高于理想值，故拟合经验校准模型：
+\begin{equation}\label{eq:T-cal}
+T_{80} = 37.09\cdot\frac{Q_1/100}{C_1} + 35.85\cdot\frac{(80-Q_1)/100}{C_2} + 5.21,\quad R^2=0.474,\ \text{MAE}=0.50\ \text{min}.
+\end{equation}
+系数显著小于理想值 60，反映高倍率阶段受电压窗口限制、有效电流低于名义值；截距项刻画固定过程开销。
+
+\subsection{寿命--策略响应面}
+
+对于尚无实测数据的候选策略，采用第 \ref{sec:dose} 节的剂量寿命模型作为设计级寿命预测；该模型与问题三的早期循环预测模型形成"先验--后验"互补：设计阶段用剂量模型给出期望寿命，运行阶段一旦积累早期循环数据，即可用问题三模型滚动更新寿命估计。设计级寿命预测模型为
+\begin{equation}\label{eq:life-surface}
+\log_{10}(L) = 3.500 - 0.167\,m_1 - 0.213\,m_2.
+\end{equation}
+
+\subsection{多目标优化与 Pareto 前沿}
+
+决策变量为 $(C_1,Q_1,C_2)$，目标为最小化 $T_{80}$ 与最大化预测寿命。在观测参数水平（$C_1\in\{1,2,3.6,\ldots,8\}$，$Q_1\in\{2,\ldots,80\}$，$C_2\in\{3,\ldots,6\}$）构成的 6860 个候选组合上进行网格寻优，并以"剂量落在实测覆盖范围"（$m_1\in[0.04,4.32]$，$m_2\in[0,4.56]$）约束排除 8C(80\%) 等未经验证的极端设计，得到 6581 个可行方案与 343 个 Pareto 非支配点（图 \ref{fig:fig10}）。
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.8\textwidth]{figures/fig10.png}
+\caption{快充策略 Pareto 前沿（充电时间 vs 预测寿命）}
+\label{fig:fig10}
+\end{figure}
+
+Pareto 前沿清晰呈现"充电时间越短、预测寿命越短"的权衡。采用膝点法（归一化对数寿命空间中离端点连线最远的点）得到推荐策略，其恰好落在数据已验证的长寿策略区域，形成模型与实验的互相印证。
+
+\subsection{推荐策略与对比}
+
+推荐策略 3.6C(80\%)-3.6C：先以 3.6C 充电至 80\% SOC，再 1C CC-CV 至满电。预测充电时间 13.5 min、预测寿命 1043，数据实测平均寿命 1182（批次 1，$n=3$）。更快备选 4C(80\%)-4C：充电时间 12.6 min、实测寿命 1226（$n=2$）。两者与短寿命策略形成鲜明对比（表 \ref{tab:compare}、图 \ref{fig:fig11}）。
+
+\begin{table}[htbp]
+\centering
+\caption{推荐策略与典型策略对比}
+\label{tab:compare}
+\begin{tabular}{ccccccc}
+\toprule
+策略 & $C_1$(C) & $Q_1$(\%) & $C_2$(C) & $T_{80}$(min) & 预测寿命 & 实测寿命 \\
+\midrule
+\textbf{推荐 3.6C(80\%)-3.6C} & 3.6 & 80 & 3.6 & 13.5 & 1043 & \textbf{1182} \\
+\textbf{备选 4C(80\%)-4C} & 4.0 & 80 & 4.0 & 12.6 & 922 & \textbf{1226} \\
+8C(15\%)-3.6C & 8.0 & 15 & 3.6 & 12.4 & 634 & 1008 \\
+6C(30\%)-3.6C & 6.0 & 30 & 3.6 & 12.0 & 655 & 952 \\
+1C(4\%)-6C & 1.0 & 4 & 6.0 & 11.2 & 334 & 300 \\
+2C(10\%)-6C & 2.0 & 10 & 6.0 & 11.3 & 375 & 148 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.8\textwidth]{figures/fig11.png}
+\caption{推荐快充策略电流剖面（3.6C(80\%)-3.6C）}
+\label{fig:fig11}
+\end{figure}
+
+\subsection{合理性、适用范围与外推风险}
+
+（1）\textbf{合理性}：推荐策略以"中高 SOC 区间低倍率充电"为核心机理（$m_2\approx0$），在几乎不延长充电时间（13.5 min）的前提下实现长寿，与问题二结论一致；优化器收敛到实验已验证的长寿策略，佐证了模型与方法的可信度。
+
+（2）\textbf{适用范围}：模型基于 A123 18650 LFP 电池在给定实验协议下的数据，适用于同类型电池、0$\sim$80\% 快充段、常温条件；批次间存在系统性差异，绝对寿命预测应按目标批次重新标定。
+
+（3）\textbf{外推风险}：优化结果被严格限制在实测参数水平及其剂量覆盖范围之内，未对未经验证的高倍率--高 SOC 组合（如 8C 充至 80\%）外推；若扩展至高倍率或更宽 SOC 区间，应补充实验数据并重新拟合，避免线性模型在支持域外失效。
+
+% ==================== 十、模型的检验与灵敏度分析 ====================
+\section{模型的检验与灵敏度分析}
+
+\subsection{寿命模型交叉验证}
+
+采用 5 折交叉验证检验剂量寿命模型的预测稳定性：在全部 standard 数据上 $R^2=0.274$、MAPE$=27.9\%$；而单独在批次 1 内交叉验证，$R^2=0.733$、MAPE$=9.9\%$。两者差异说明模型在批次内解释力强、预测稳定，跨批次合并数据则稀释了预测精度，进一步印证了批次效应的存在。
+
+\subsection{留一批次外推检验}
+
+为定量刻画批次效应，做留一批次外推检验：用批次 1 训练、批次 2 检验，寿命 MAPE 达 79.4\%（$R^2<0$）；反向亦为 39.7\%（$R^2<0$）。这说明\textbf{绝对寿命的跨批次外推不可靠}，模型捕获的是批次内的相对关系，与第 5 节"批次效应说明"及第 9 节"绝对寿命预测应按目标批次重新标定"的结论一致。因此，本文推荐策略的价值在于给出批次内的最优相对设计，而非跨批次的绝对寿命保证；实际部署时需结合目标批次数据重新标定后再做绝对寿命判断。
+
+\subsection{推荐策略灵敏度分析}
+
+对推荐策略 3.6C(80\%)-3.6C 的三个参数分别施加扰动，考察充电时间与预测寿命的变化（表 \ref{tab:sens}）：
+\begin{itemize}
+\item \textbf{$C_1$ 是主要敏感参数}：$C_1$ 每变化 $\pm0.4$C，充电时间反向变化约 6\%$\sim$8\%，预测寿命反向变化约 12\%$\sim$13\%，二者权衡明显——$C_1$ 提高可加速充电但明显缩短寿命。实际执行中应重点保证 $C_1$ 的准确性。
+\item \textbf{$Q_1$、$C_2$ 扰动影响可忽略}：因 $Q_1=80\%$ 时第二阶段覆盖为零、$C_2$ 不参与快充段充电，故 $C_2$ 的扰动不影响结果，$Q_1$ 略降影响也甚微。这提示推荐策略对 $C_2$、$Q_1$ 的小幅执行偏差具有鲁棒性。
+\end{itemize}
+
+\begin{table}[htbp]
+\centering
+\caption{推荐策略参数灵敏度分析（基准 3.6C(80\%)-3.6C）}
+\label{tab:sens}
+\begin{tabular}{llcc}
+\toprule
+参数扰动 & 变化 & $T_{80}$(min) & 预测寿命 \\
+\midrule
+基准 & --- & 13.5 & 1045 \\
+$C_1$ & $+0.4$C & 12.6（$-6.1\%$） & 924（$-11.6\%$） \\
+$C_1$ & $-0.4$C & 14.5（$+7.7\%$） & 1182（$+13.1\%$） \\
+$Q_1$ & $-5\%$ & 13.4（$-0.1\%$） & 1025（$-1.9\%$） \\
+$C_2$ & $\pm0.4$C & 13.5（$0\%$） & 1045（$0\%$） \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+% ==================== 十一、模型评价、改进与推广 ====================
+\section{模型评价、改进与推广}
+
+\subsection{模型优点}
+\begin{enumerate}
+\item \textbf{机理与数据结合}：剂量模型以"高倍率电量在 SOC 轴上的分布"刻画老化，系数符号与电化学机制一致，结果可解释。
+\item \textbf{充分考虑混杂与批次效应}：多变量回归引入批次虚拟变量，分批次回归作为稳健性验证，结论不依赖于单一批次。
+\item \textbf{预测模型经严格交叉验证}：5 折$\times$8 次重复交叉验证避免过拟合，并给出不同早期窗口的精度-成本权衡。
+\item \textbf{优化约束合理}：设计空间严格限制在实验覆盖范围，避免过度外推。
+\end{enumerate}
+
+\subsection{模型不足与改进}
+\begin{enumerate}
+\item 问题二回归模型仅解释约 62\%（含批次）的寿命方差，电池个体差异与温度等未观测因素仍占较大比例；可引入温度、内阻等逐循环协变量提高解释力。
+\item 问题三长期 SOH 预测精度较低（$t\ge800$ 时 $R^2\approx0.1$），可结合电化学模型或序列模型（LSTM/Transformer）刻画长期非线性衰减。
+\item 问题四以充电倍率与 SOC 切换点为决策变量，未考虑电流阶跃、温度约束等工程细节，实际落地需结合热管理进行仿真验证。
+\end{enumerate}
+
+\subsection{模型推广}
+本模型框架可推广至其他电池体系（如三元锂电池、钠离子电池）及其他充电协议（脉冲充电、多段电流），只需重新拟合剂量-寿命响应面与早期预测特征即可；"先验（策略剂量）--后验（早期数据）"结合的策略优化范式具有通用性。
+
+% ==================== 十二、结论 ====================
+\section{结论}
+
+本文围绕快充策略对锂离子电池寿命衰减的影响，完成了"数据整理 $\rightarrow$ 量化建模 $\rightarrow$ 寿命预测 $\rightarrow$ 策略优化"四个递进环节，主要结论如下：
+
+\begin{enumerate}
+\item \textbf{数据与寿命分布}：完成 140 个电池策略参数、寿命、SOH 曲线与充电时间的系统整理；寿命跨度 13 倍（148$\sim$1935），策略影响极显著；三个批次寿命中位数分别为 858、483、1006。
+\item \textbf{量化模型}：$C_2$ 是寿命衰减的主导策略因素（含批次标准化系数 $-0.037$，偏相关 $-0.243$）；单位高倍率电量在中高 SOC 区间的寿命损伤比低 SOC 区间高约 27\%（$m_2$ $-0.213$ vs $m_1$ $-0.167$），验证了不同 SOC 区间高倍率影响的显著差异；$C_1\times Q_1$、$C_2\times Q_1$ 交互项从剂量角度解释了各参数的作用机制。
+\item \textbf{寿命预测}：基于早期 20 个循环特征（SOH 衰减率、波动、充电时间漂移），GBM 模型交叉验证 MAPE=15.9\%、$R^2=0.73$；充电时间波动与 SOH 残差波动为主导特征；近中期 SOH 预测误差小于 1.2\%，长期 SOH 存在不可约不确定性。
+\item \textbf{策略优化}：在实验覆盖邻域内得到 Pareto 前沿，推荐 3.6C(80\%)-3.6C（充电 13.5 min、实测寿命 1182）与更快备选 4C(80\%)-4C（12.6 min、实测 1226），实现"不牺牲充电时间的快速补能与显著寿命延长"；结果限定在数据覆盖范围内，并给出外推风险边界。
+\end{enumerate}
+
+% ==================== 参考文献 ====================
+\begin{thebibliography}{9}
+\bibitem{ref1} Severson K A, Attia P M, Jin N, et al. Data-driven prediction of battery cycle life before capacity degradation[J]. Nature Energy, 2019, 4(5): 383-391.
+\end{thebibliography}
+
+% ==================== 附录 ====================
+\begin{appendices}
+
+\section{支撑材料文件列表}
+
+本论文的支撑材料文件列表如表 \ref{tab:support} 所示。所有源程序可运行，分析结果与本论文一致。
+
+\begin{table}[htbp]
+\centering
+\caption{支撑材料文件列表}
+\label{tab:support}
+\begin{tabular}{lll}
+\toprule
+文件名 & 内容 & 用途 \\
+\midrule
+data\_1.mat / data\_2.mat / data\_3.mat & 三个批次原始循环老化数据 & 数据来源 \\
+data\_extract.py & 从 HDF5 提取电池级汇总表 & 数据整理 \\
+analysis1.py & 问题一统计分析与图表 & 问题一 \\
+analysis2.py & 问题二回归/剂量/交互分析 & 问题二 \\
+analysis3.py & 问题三特征提取与预测 & 问题三 \\
+analysis4.py & 问题四充电时间/寿命模型与优化 & 问题四 \\
+battery\_table.csv & 140 电池汇总表 & 中间数据 \\
+每循环明细表.csv & 逐循环 SOH/容量/充电时间 & 中间数据 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\section{源程序}
+
+以下为主要分析源程序（Python）。运行环境：Python 3.10+，依赖 numpy、pandas、scipy、matplotlib、scikit-learn、h5py。注意脚本中数据路径需按实际位置修改。
+
+\subsection{data\_extract.py —— 数据提取}
+\lstinputlisting[language=Python]{code/data_extract.py}
+
+\subsection{analysis1.py —— 问题一：数据整理与初步分析}
+\lstinputlisting[language=Python]{code/analysis1.py}
+
+\subsection{analysis2.py —— 问题二：量化模型}
+\lstinputlisting[language=Python]{code/analysis2.py}
+
+\subsection{analysis3.py —— 问题三：寿命预测模型}
+\lstinputlisting[language=Python]{code/analysis3.py}
+
+\subsection{analysis4.py —— 问题四：策略优化}
+\lstinputlisting[language=Python]{code/analysis4.py}
+
+\end{appendices}
+
+\end{document}
