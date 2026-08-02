@@ -17,3 +17,7 @@
 
 # 本地工具配置
 .claude/
+
+# Python 缓存
+__pycache__/
+*.pyc

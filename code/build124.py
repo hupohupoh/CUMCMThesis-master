@@ -21,8 +21,12 @@ PAIR1 = {b:a for a,b in PAIRS}
 REMOVE = [b for _, b in PAIRS]  # 从 data_2 移除的延续电池
 
 def build_merged_cycles():
-    """合并后每循环数据: 段2追加到段1, SOH按合并序列首Qd重算"""
-    rows = cy[~cy['battery'].isin(REMOVE)].copy()
+    """合并后每循环数据: 段2追加到段1, SOH按合并序列首Qd重算
+    注意: 基底电池 data_1_cell00-04 必须从 rows 中移除 (由 comb 合并版取代),
+    否则会残留一份未合并的原始行, 造成 cycle 编号重复 (如 1,1,2,2,...),
+    使 '前 k 循环' 实际只覆盖 k/2 个循环。"""
+    base = [a for a, _ in PAIRS]
+    rows = cy[~cy['battery'].isin(REMOVE + base)].copy()
     for a, b in PAIRS:
         d1 = cy[cy['battery']==a].sort_values('cycle')
         d2 = cy[cy['battery']==b].sort_values('cycle')
@@ -35,8 +39,10 @@ def build_merged_cycles():
     return rows.sort_values(['battery','cycle']).reset_index(drop=True)
 
 def recompute_cl(grp):
+    """数据集约定: cycle_life = 首次 Qd<0.88 的循环 + 1; 未达则最后循环 + 1
+    (与正文 main.tex "首次衰减至 0.88 Ah 时的循环数" 口径一致, 实测值即由此得到)"""
     below = grp[grp['Qd_Ah'] < 0.88]
-    return below['cycle'].min() if len(below) else grp['cycle'].max()
+    return below['cycle'].min() + 1 if len(below) else grp['cycle'].max() + 1
 
 cy_merged = build_merged_cycles()
 
@@ -85,8 +91,8 @@ for batt in keep_bats:
     row['cycle_life'] = cl
     row['n_cycles'] = len(grp)
     row['Qinit_Ah'] = round(grp['Qd_Ah'].iloc[0], 4)
-    row['avg_chargetime_min'] = round(grp['chargetime_h'].mean(), 3)
-    row['first_chargetime_min'] = round(grp['chargetime_h'].iloc[0], 3)
+    row['avg_chargetime_min'] = round(grp['chargetime_min'].mean(), 3)
+    row['first_chargetime_min'] = round(grp['chargetime_min'].iloc[0], 3)
     row['min_SOH_pct'] = round(grp['SOH_pct'].min(), 2)
     rows.append(row)
 bt124 = pd.DataFrame(rows)

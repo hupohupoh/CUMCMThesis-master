@@ -4,21 +4,15 @@
 2) 寿命模型: SOC剂量模型 log10(寿命) ~ m1 + m2, m1=C1*Q1/100, m2=C2*(80-Q1)/100
 3) 在观测参数水平构成的"合理邻域"内网格搜索, 提取 Pareto 前沿
 4) 推荐策略 + 与典型长/短寿命策略对比
+数据口径: battery_table_124.csv (论文口径, standard 为 84 个电池)
+图表已统一迁移至 make_figures.py 生成, 本脚本仅保留分析计算
 """
 import pandas as pd, numpy as np, os, sys, io
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
-import matplotlib
-matplotlib.use('Agg')
-import matplotlib.pyplot as plt
-
-plt.rcParams['font.sans-serif'] = ['SimHei', 'Microsoft YaHei']
-plt.rcParams['axes.unicode_minus'] = False
 
 BASE = r"C:\Users\one\Desktop\2026年校赛题目\B"
-FIG = os.path.join(BASE, 'data_processed', 'figs')
-os.makedirs(FIG, exist_ok=True)
 
-bt = pd.read_csv(os.path.join(BASE, 'data_processed', 'battery_table.csv'))
+bt = pd.read_csv(os.path.join(BASE, 'data_processed', 'battery_table_124.csv'))
 bt['cycle_life'] = pd.to_numeric(bt['cycle_life'], errors='coerce')
 std = bt[bt['protocol'] == 'standard'].dropna(subset=['cycle_life']).copy()
 std['loglife'] = np.log10(std['cycle_life'])
@@ -150,28 +144,4 @@ res = dict(w=w, T_r2=T_r2, b_all=b_all, life_res={k: {kk: (vv.tolist() if isinst
                                                        for kk, vv in v.items()} for k, v in life_res.items()},
            front=P[['C1','Q1','C2','T','life']].to_dict('records'), rec=rec.to_dict(), fast=fast.to_dict())
 np.save(os.path.join(BASE, 'data_processed', 'q4_results.npy'), res, allow_pickle=True)
-
-# ================= 图10: Pareto 前沿 =================
-fig, ax = plt.subplots(figsize=(8, 6.5))
-ax.scatter(T_all.ravel(), L_all.ravel(), s=4, alpha=.25, c='lightsteelblue', label='可行设计(观测水平邻域)')
-ax.plot(P['T'], P['life'], 'o-', color='crimson', ms=6, lw=1.6, label='Pareto 前沿')
-ax.plot(rec['T'], rec['life'], 'r*', ms=20, label=f'推荐策略(膝点): {rec["C1"]:.1f}C({rec["Q1"]:.0f}%)-{rec["C2"]:.1f}C')
-ax.set_xlabel('充电时间 T80 (min)'); ax.set_ylabel('预测循环寿命')
-ax.legend(fontsize=9, loc='upper right')
-ax.set_title('快充策略 Pareto 前沿 (充电时间 vs 预测寿命)\n寿命模型: log10(寿命) ~ 低SOC剂量 + 中高SOC剂量')
-plt.tight_layout(); plt.savefig(os.path.join(FIG, 'fig10_Pareto前沿.png'), dpi=120); plt.close()
-
-# ================= 图11: 推荐充电策略电流剖面 =================
-fig, ax = plt.subplots(figsize=(8, 4.6))
-c1, q1, c2 = rec['C1'], rec['Q1'], rec['C2']
-soc = np.array([0, q1, 80, 100]); I = np.array([c1, c2, 1.0, 0.0])
-ax.step(soc, I, where='post', lw=2.5, color='steelblue')
-ax.axvline(q1, color='gray', ls=':', lw=1); ax.text(q1, c1+0.25, f'Q1={q1:.0f}%', ha='center', fontsize=9)
-ax.text(q1/2, c1+0.2, f'{c1:.1f}C', ha='center', fontsize=10)
-ax.text((q1+80)/2, c2+0.2, f'{c2:.1f}C', ha='center', fontsize=10)
-ax.text(90, 1.1, '1C CC-CV', ha='center', fontsize=9)
-ax.set_xlabel('SOC (%)'); ax.set_ylabel('充电倍率 (C)'); ax.set_xlim(0,100); ax.set_ylim(0, c1+1)
-ax.set_title(f'推荐快充策略: {c1:.1f}C({q1:.0f}%)-{c2:.1f}C\nT80≈{T80(c1,q1,c2):.1f} min, 预测寿命≈{life_model(c1,q1,c2):.0f}')
-plt.tight_layout(); plt.savefig(os.path.join(FIG, 'fig11_推荐策略剖面.png'), dpi=120); plt.close()
-
-print(f"\n图表: fig10_Pareto前沿.png, fig11_推荐策略剖面.png")
+print("\n已保存 q4_results.npy (图表由 make_figures.py 统一生成)")
