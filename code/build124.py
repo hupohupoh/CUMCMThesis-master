@@ -85,8 +85,8 @@ for batt in keep_bats:
     row['cycle_life'] = cl
     row['n_cycles'] = len(grp)
     row['Qinit_Ah'] = round(grp['Qd_Ah'].iloc[0], 4)
-    row['avg_chargetime_min'] = round(grp['chargetime_h'].mean(), 3)
-    row['first_chargetime_min'] = round(grp['chargetime_h'].iloc[0], 3)
+    row['avg_chargetime_min'] = round(grp['chargetime_min'].mean(), 3)
+    row['first_chargetime_min'] = round(grp['chargetime_min'].iloc[0], 3)
     row['min_SOH_pct'] = round(grp['SOH_pct'].min(), 2)
     rows.append(row)
 bt124 = pd.DataFrame(rows)

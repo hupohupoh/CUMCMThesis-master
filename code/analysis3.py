@@ -2,14 +2,12 @@
 """B题 问题三: 基于早期循环数据的寿命预测模型
 特征: 早期SOH斜率/波动/潜伏时间/充电时间变化 + 策略参数
 模型: Ridge / RandomForest / GradientBoosting, 5折重复交叉验证
-评估: 不同早期窗口长度 k 的预测误差
+评估: 不同早期窗口长度 k 的预测误差 (保存 q3_predictions.csv/q3_results.npy/q3_traj.npy)
+图表(fig6--fig9)由 make_figures.py 统一生成。
 """
 import pandas as pd, numpy as np, os, sys, io, warnings
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
 warnings.filterwarnings('ignore')
-import matplotlib
-matplotlib.use('Agg')
-import matplotlib.pyplot as plt
 from scipy import stats
 from sklearn.model_selection import RepeatedKFold
 from sklearn.linear_model import Ridge, LinearRegression
@@ -17,19 +15,14 @@ from sklearn.ensemble import RandomForestRegressor, GradientBoostingRegressor
 from sklearn.metrics import r2_score, mean_absolute_error
 from sklearn.preprocessing import StandardScaler
 
-plt.rcParams['font.sans-serif'] = ['SimHei', 'Microsoft YaHei']
-plt.rcParams['axes.unicode_minus'] = False
-
 BASE = r"C:\Users\one\Desktop\2026年校赛题目\B"
-FIG = os.path.join(BASE, 'data_processed', 'figs')
-os.makedirs(FIG, exist_ok=True)
 
-cy = pd.read_csv(os.path.join(BASE, 'data_processed', '每循环明细表.csv'))
-bt = pd.read_csv(os.path.join(BASE, 'data_processed', 'battery_table.csv'))
+cy = pd.read_csv(os.path.join(BASE, 'data_processed', '每循环明细表_124.csv'))
+bt = pd.read_csv(os.path.join(BASE, 'data_processed', 'battery_table_124.csv'))
 bt['cycle_life'] = pd.to_numeric(bt['cycle_life'], errors='coerce')
 bt = bt.dropna(subset=['cycle_life']).reset_index(drop=True)
 # 充电时间异常清洗 (剔除 >40 min 的脏点)
-cy = cy[cy['chargetime_h'] < 40].copy()
+cy = cy[cy['chargetime_min'] < 40].copy()
 
 # ============ 特征提取 ============
 WINDOWS = [5, 10, 20, 50, 100]
@@ -41,7 +34,7 @@ def extract_features(batt, k):
         return None
     soh = d['SOH_pct'].values.astype(float)
     qd = d['Qd_Ah'].values.astype(float)
-    ct = d['chargetime_h'].values.astype(float)
+    ct = d['chargetime_min'].values.astype(float)
     x = np.arange(1, len(soh) + 1)
     # 线性拟合
     slope, intercept, r, p, se = stats.linregress(x, soh)
@@ -160,48 +153,7 @@ res = dict(summary={f'{k}_{m}': v for (k, m), v in summary.items()},
            imp=imp.to_dict(), feats=ALL_FEATS, windows=WINDOWS)
 np.save(os.path.join(BASE, 'data_processed', 'q3_results.npy'), res, allow_pickle=True)
 
-# ================= 图6: 预测 vs 实际 (k=100, GBM, 交叉验证预测) =================
-# 用 RepeatedKFold 收集 OOF 预测
-rkf = RepeatedKFold(n_splits=5, n_repeats=10, random_state=42)
-oof = np.zeros(len(sub))
-for tr, te in rkf.split(X):
-    m = GradientBoostingRegressor(n_estimators=250, max_depth=2, learning_rate=0.05, random_state=42)
-    m.fit(X[tr], yl[tr])
-    oof[te] = m.predict(X[te])
-life_t = 10 ** yl; life_p = 10 ** oof
-fig, ax = plt.subplots(figsize=(7, 6.5))
-ax.scatter(life_t, life_p, c=sub['batch'].map({'data_1': 'steelblue', 'data_2': 'darkorange', 'data_3': 'green'}), s=35, alpha=.75)
-lim = [100, 2200]
-ax.plot(lim, lim, 'k--', lw=1)
-ax.plot(lim, [x * 0.9 for x in lim], 'k:', lw=.8); ax.plot(lim, [x * 1.1 for x in lim], 'k:', lw=.8)
-ax.set_xlim(lim); ax.set_ylim(lim); ax.set_xlabel('实际循环寿命'); ax.set_ylabel('预测循环寿命')
-mape_cv = np.mean(np.abs(life_p - life_t) / life_t) * 100
-r2_cv = r2_score(yl, oof)
-ax.set_title(f'早期100循环预测寿命 (GBM, 交叉验证)\nMAPE={mape_cv:.1f}%, R²={r2_cv:.3f}, n={len(sub)}')
-from matplotlib.lines import Line2D
-handles = [Line2D([0], [0], marker='o', color='none', markerfacecolor=c, markersize=8, label=b)
-           for b, c in [('data_1', 'steelblue'), ('data_2', 'darkorange'), ('data_3', 'green')]]
-ax.legend(handles=handles, loc='upper left', fontsize=9)
-plt.tight_layout(); plt.savefig(os.path.join(FIG, 'fig6_寿命预测对比.png'), dpi=120); plt.close()
-
-# ================= 图7: MAPE vs 早期窗口长度 =================
-fig, ax = plt.subplots(figsize=(7.5, 5))
-for mn, c, mk in [('Ridge', 'steelblue', 'o'), ('RandomForest', 'darkorange', 's'), ('GradientBoosting', 'green', '^')]:
-    vals = [summary[(k, mn)]['mape'] for k in WINDOWS]
-    ax.plot(WINDOWS, vals, marker=mk, color=c, lw=1.8, label=mn)
-ax.set_xlabel('早期循环窗口长度 k (个循环)'); ax.set_ylabel('寿命预测 MAPE (%)')
-ax.set_xticks(WINDOWS); ax.grid(alpha=.3); ax.legend()
-ax.set_title('预测误差随早期数据长度变化 (5折×8重复交叉验证)')
-plt.tight_layout(); plt.savefig(os.path.join(FIG, 'fig7_MAPE_vs窗口.png'), dpi=120); plt.close()
-
-# ================= 图8: 特征重要性 =================
-fig, ax = plt.subplots(figsize=(7.5, 6))
-imp_top = imp.head(12)[::-1]
-ax.barh(imp_top.index, imp_top.values, color='steelblue')
-ax.set_xlabel('特征重要性'); ax.set_title('寿命预测特征重要性 (k=100, GradientBoosting)')
-plt.tight_layout(); plt.savefig(os.path.join(FIG, 'fig8_特征重要性.png'), dpi=120); plt.close()
-
-print(f"\n图表: fig6_寿命预测对比.png, fig7_MAPE_vs窗口.png, fig8_特征重要性.png")
+print("\n分析完成: 图6/图7/图8 由 make_figures.py 统一生成")
 
 # ================= 四、SOH 未来轨迹预测 (里程碑循环) =================
 print("\n" + "=" * 60)
@@ -239,29 +191,5 @@ for t in MILESTONES:
     traj_res[t] = dict(mae=mae, r2=r2s, n=len(tr))
     print(f"  里程碑 t={t}:  R²={r2s:.3f}  MAE={mae:.2f} pct  (n={len(tr)})")
 
-# ================= 图9: 预测SOH vs 实际SOH 轨迹 =================
-# 挑选 3 个代表性电池 (长/中/短寿命), 展示早期20循环数据 + 里程碑预测 + 实际轨迹
-sample = ['data_1_cell00', 'data_2_cell09', 'data_2_cell01']  # 长/中/短
-fig, axes = plt.subplots(1, 3, figsize=(15, 4.5), sharey=True)
-for ax, batt in zip(axes, sample):
-    d = cy[cy['battery'] == batt].sort_values('cycle')
-    cl = bt[bt['battery'] == batt]['cycle_life'].values[0]
-    ax.plot(d['cycle'], d['SOH_pct'], color='lightgray', lw=1.2, label='实际SOH轨迹')
-    d20 = cy[cy['battery'] == batt].sort_values('cycle').head(20)
-    ax.plot(d20['cycle'], d20['SOH_pct'], 'b-', lw=2, label='前20循环(训练用)')
-    # 里程碑真实 SOH (预测目标)
-    for t in MILESTONES:
-        v = soh_at[batt][t]
-        if np.isfinite(v):
-            ax.plot(t, v, 'ro', ms=6)
-    ax.axhline(80, color='red', ls='--', alpha=.5)
-    ax.set_title(f'{batt}\ncycle_life={int(cl)}')
-    ax.set_xlabel('循环数')
-axes[0].set_ylabel('SOH (%)')
-handles, labels = axes[0].get_legend_handles_labels()
-axes[2].legend(handles, labels, fontsize=8, loc='lower left')
-plt.suptitle('实际 SOH 轨迹与前 20 循环数据 (用于早期预测)', fontsize=11)
-plt.tight_layout(); plt.savefig(os.path.join(FIG, 'fig9_轨迹预测演示.png'), dpi=120); plt.close()
-
 np.save(os.path.join(BASE, 'data_processed', 'q3_traj.npy'), traj_res, allow_pickle=True)
-print("\n图9: fig9_轨迹预测演示.png")
+print("\n分析完成: 图9 由 make_figures.py 统一生成")

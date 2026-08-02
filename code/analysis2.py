@@ -1,22 +1,15 @@
 # -*- coding: utf-8 -*-
 """B题 问题二: 充电策略参数与寿命衰减的定量关系模型
-输出: 回归系数/标准化系数/p值/重要性排序/交互分析 + 图4/图5
+输出: 回归系数/标准化系数/p值/重要性排序/交互分析 (保存 q2_results.npy)
+图表(fig4--fig5)由 make_figures.py 统一生成。
 """
 import pandas as pd, numpy as np, os, math, sys, io
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
-import matplotlib
-matplotlib.use('Agg')
-import matplotlib.pyplot as plt
 from scipy import stats
 
-plt.rcParams['font.sans-serif'] = ['SimHei', 'Microsoft YaHei']
-plt.rcParams['axes.unicode_minus'] = False
-
 BASE = r"C:\Users\one\Desktop\2026年校赛题目\B"
-FIG = os.path.join(BASE, 'data_processed', 'figs')
-os.makedirs(FIG, exist_ok=True)
 
-df = pd.read_csv(os.path.join(BASE, 'data_processed', 'battery_table.csv'))
+df = pd.read_csv(os.path.join(BASE, 'data_processed', 'battery_table_124.csv'))
 df['cycle_life'] = pd.to_numeric(df['cycle_life'], errors='coerce')
 std = df[df['protocol'] == 'standard'].dropna(subset=['cycle_life']).copy()
 std['loglife'] = np.log10(std['cycle_life'])
@@ -161,49 +154,4 @@ res = dict(
 )
 np.save(os.path.join(BASE, 'data_processed', 'q2_results.npy'), res, allow_pickle=True)
 
-# ================= 图4: 各变量偏回归图 (控制其他参数与批次后) =================
-fig, axes = plt.subplots(1, 4, figsize=(17, 4))
-for ax, v in zip(axes, Xr_names):
-    i = Xr_names.index(v)
-    # 控制其他策略参数 + 批次后的偏回归
-    others = [j for j in range(4) if j != i]
-    other_cols = [Xr_names[j] for j in others] + ['batch2']
-    Xo = np.column_stack([np.ones(len(y)), std[other_cols].values])
-    ry = y - Xo @ np.linalg.lstsq(Xo, y, rcond=None)[0]
-    rx = Xr[:, i] - Xo @ np.linalg.lstsq(Xo, Xr[:, i], rcond=None)[0]
-    ax.scatter(rx, ry, s=30, alpha=.6, c='steelblue')
-    z = np.polyfit(rx, ry, 1)
-    xx = np.linspace(rx.min(), rx.max(), 50)
-    ax.plot(xx, np.polyval(z, xx), 'r--', lw=1.2)
-    ax.set_xlabel(f'{v} (残差化)', fontsize=10)
-    ax.set_ylabel('log10(寿命) 残差', fontsize=10)
-    # 偏相关基于4参数模型
-    pr = pcorr(Xr, y, i)
-    ax.set_title(f'{v}  偏相关={pr:.2f}', fontsize=10)
-fig.suptitle('偏回归图: 控制其他变量与批次后, 各参数与寿命的关系 (standard, n=94)', fontsize=11)
-plt.tight_layout(); plt.savefig(os.path.join(FIG, 'fig4_偏回归图.png'), dpi=120); plt.close()
-
-# ================= 图5: 预测寿命热力图 =================
-# 用 C1,Q1,C2 全模型在网格上预测 loglife (充电时间用均值)
-Tmean = std['T'].mean()
-grid_c1 = np.linspace(1, 8, 60)
-grid_q1 = np.linspace(5, 80, 60)
-# 固定 C2 = 3.6 与 6.0 两张子图, 展示 Q1×C1 面上的寿命
-b = Rr['coef']
-C1s, Q1s, C2s, Ts = X.mean(axis=0), X.std(axis=0), X.std(axis=0), X.std(axis=0)
-def pred(c1, q1, c2):
-    return 10 ** (b[0] + b[1]*c1 + b[2]*q1 + b[3]*c2 + b[4]*Tmean)
-fig, axes = plt.subplots(1, 2, figsize=(13, 5))
-for ax, c2 in zip(axes, [3.6, 6.0]):
-    Z = np.array([[pred(c1, q1, c2) for q1 in grid_q1] for c1 in grid_c1])
-    im = ax.contourf(grid_c1, grid_q1, Z.T, levels=20, cmap='viridis_r')
-    ax.set_xlabel('C1 (C)'); ax.set_ylabel('Q1 (%)'); ax.set_title(f'C2 = {c2}C 预测寿命')
-    cb = fig.colorbar(im, ax=ax)
-    cb.set_label('预测循环寿命')
-    # 标记实验覆盖点
-    for _, row in std[std['C2_C'] == c2].iterrows():
-        ax.plot(row['C1_C'], row['Q1_pct'], 'r.', markersize=5)
-fig.suptitle('策略参数空间上的寿命预测 (模型: log10(寿命) ~ C1+Q1+C2+T)', fontsize=11)
-plt.tight_layout(); plt.savefig(os.path.join(FIG, 'fig5_寿命热力图.png'), dpi=120); plt.close()
-
-print(f"\n图表: fig4_偏回归图.png, fig5_寿命热力图.png")
+print("\n分析完成: 图4/图5 由 make_figures.py 统一生成")
