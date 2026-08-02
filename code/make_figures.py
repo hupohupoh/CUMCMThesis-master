@@ -357,7 +357,7 @@ for i in range(len(cols)):
                 color='white' if abs(cm[i,j]) > 0.5 else INK)
 ax.set_xticks(range(len(cols))); ax.set_xticklabels(labs, fontsize=10)
 ax.set_yticks(range(len(cols))); ax.set_yticklabels(labs, fontsize=10)
-ax.set_title('策略参数与循环寿命的相关性矩阵（standard，n=94）', fontsize=12)
+ax.set_title(f'策略参数与循环寿命的相关性矩阵（standard，n={len(std)}）', fontsize=12)
 cb = fig.colorbar(im, ax=ax, pad=0.02); cb.set_label('Pearson 相关系数', fontsize=9)
 style_ax(ax)
 fig.tight_layout()
@@ -395,14 +395,22 @@ fig.tight_layout()
 save(fig, 'fig14_预测误差分布.png')
 
 # ================= 图15: 推荐策略与典型策略对比 =================
-cmp_rows = [
-    ('推荐 3.6C(80%)-3.6C', 1182, 13.5, BLUE, True),
-    ('备选 4C(80%)-4C', 1226, 12.6, '#3987e5', True),
-    ('8C(15%)-3.6C', 1008, 12.4, '#9ec5f4', False),
-    ('6C(30%)-3.6C', 952, 12.0, '#9ec5f4', False),
-    ('1C(4%)-6C', 300, 11.2, RED, False),
-    ('2C(10%)-6C', 148, 11.3, RED, False),
-]
+# 实测寿命/充电时间从 124 清洗集与 q4 模型动态计算, 保证与正文表 tab:compare 一致
+wT15 = q4['w']
+def _T80(c1, q1, c2):
+    return wT15[0]*(q1/100)/c1 + wT15[1]*((80-q1)/100)/c2 + wT15[2]
+cmp_rows = []
+for _name, _c1, _q1, _c2, _col, _bold in [
+        ('推荐 3.6C(80%)-3.6C', 3.6, 80, 3.6, BLUE, True),
+        ('备选 4C(80%)-4C', 4.0, 80, 4.0, '#3987e5', True),
+        ('8C(15%)-3.6C', 8.0, 15, 3.6, '#9ec5f4', False),
+        ('6C(30%)-3.6C', 6.0, 30, 3.6, '#9ec5f4', False),
+        ('1C(4%)-6C', 1.0, 4, 6.0, RED, False),
+        ('2C(10%)-6C', 2.0, 10, 6.0, RED, False)]:
+    _pol = f'{_c1:g}C({int(_q1)}%)-{_c2:g}C'
+    _obs = std[std['policy'] == _pol]['cycle_life']
+    _obs_life = round(_obs.mean()) if len(_obs) else np.nan
+    cmp_rows.append((_name, _obs_life, round(_T80(_c1, _q1, _c2), 1), _col, _bold))
 names = [r[0] for r in cmp_rows]
 fig, axes = plt.subplots(1, 2, figsize=(9.8, 4.4))
 ax = axes[0]
@@ -438,7 +446,7 @@ for patch, c in zip(bp['boxes'], SEQB[1::2]):
     patch.set_facecolor(c); patch.set_alpha(0.85)
 ax.set_xticklabels(['3.0~3.6', '3.7~4.4', '4.5~5.2', '5.3~6.0'], fontsize=10)
 ax.set_xlabel('$C_2$ 档位 (C)'); ax.set_ylabel('循环寿命')
-ax.set_title('不同 $C_2$ 档位下的循环寿命分布（standard，n=94）', fontsize=12)
+ax.set_title(f'不同 $C_2$ 档位下的循环寿命分布（standard，n={len(std)}）', fontsize=12)
 style_ax(ax)
 fig.tight_layout()
 save(fig, 'fig16_C2寿命分布.png')
@@ -468,7 +476,7 @@ ax.set_xlim(lim); ax.set_ylim(lim)
 ax.set_xlabel('理想模型充电时间 (min)', fontsize=10); ax.set_ylabel('实测充电时间 (min)', fontsize=10)
 ax.set_title('实测 vs 理想充电时间', fontsize=11)
 style_ax(ax)
-fig.suptitle('充电时间分析（standard，n=94）', fontsize=13, y=1.02)
+fig.suptitle(f'充电时间分析（standard，n={len(std)}）', fontsize=13, y=1.02)
 fig.tight_layout()
 save(fig, 'fig17_充电时间分析.png')
 
@@ -492,7 +500,7 @@ ax.axvline(0, color=RED, lw=1.4, ls='--')
 ax.set_xlabel('残差'); ax.set_ylabel('频数')
 ax.set_title('残差直方图（近正态、无偏）', fontsize=11)
 style_ax(ax)
-fig.suptitle('问题二回归模型残差诊断（n=94）', fontsize=13, y=1.02)
+fig.suptitle(f'问题二回归模型残差诊断（n={len(std)}）', fontsize=13, y=1.02)
 fig.tight_layout()
 save(fig, 'fig18_回归残差诊断.png')
 
