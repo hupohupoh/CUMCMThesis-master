@@ -230,18 +230,19 @@ save(fig, 'fig5_寿命热力图.png')
 
 # ================= 图6: 预测 vs 实际 (k=100, GBM) =================
 qp = pd.read_csv(os.path.join(BASE, 'data_processed', 'q3_predictions.csv'))
-fig, ax = plt.subplots(figsize=(6.8, 6))
+fig, ax = plt.subplots(figsize=(6.8, 6.8))
 for b in ['data_1', 'data_2', 'data_3']:
     sub = qp[qp['batch'] == b]
     ax.scatter(sub['cycle_life'], sub['pred_life'], s=26, alpha=0.8, color=BCOL[b],
                edgecolor='white', lw=0.4, label=b)
-lim = [100, 2200]
+lim = [0, 2300]   # 从原点起, 等比例保证 45° 对角线与 ±10% 带不变形
 ax.plot(lim, lim, color=INK, lw=1.4, ls='--')
 ax.plot(lim, [x*0.9 for x in lim], color=MUTED, lw=0.8, ls=':')
 ax.plot(lim, [x*1.1 for x in lim], color=MUTED, lw=0.8, ls=':')
-ax.text(1800, 1750, '+10%', fontsize=9, color=MUTED)
-ax.text(1800, 1650, '−10%', fontsize=9, color=MUTED)
+ax.text(1900, 1830, '+10%', fontsize=9, color=MUTED)
+ax.text(1900, 1710, '−10%', fontsize=9, color=MUTED)
 ax.set_xlim(lim); ax.set_ylim(lim)
+ax.set_aspect('equal')
 ax.set_xlabel('实际循环寿命'); ax.set_ylabel('预测循环寿命')
 ax.set_title('早期 100 循环预测寿命 vs 实际寿命（GBM，交叉验证）', fontsize=12)
 ax.legend(frameon=False, fontsize=9, loc='upper left')
@@ -266,6 +267,24 @@ save(fig, 'fig7_MAPE_vs窗口.png')
 
 # ================= 图8: 特征重要性 =================
 imp = pd.Series(q3['imp']).sort_values(ascending=True)
+# 特征名英译中, 使 y 轴可读
+FEAT_CN = {
+    'soh_k': '第k循环 SOH', 'loss_k': '容量损失(100−SOH)', 'slope': 'SOH 拟合斜率',
+    'slope_r2': 'SOH 拟合 R²', 'soh_resid_std': 'SOH 残差波动',
+    'soh_firstdiff_std': 'SOH 一阶差分波动', 'qd_std': '容量波动',
+    'qd_firstdiff_std': '容量一阶差分波动', 'qd_slope': '容量斜率',
+    'ct_first': '首循环充电时间', 'ct_k': '第k循环充电时间', 'ct_slope': '充电时间斜率',
+    'ct_diff_std': '充电时间波动', 'ct_drift': '充电时间漂移',
+    'C1_C': 'C1 第一阶段倍率', 'Q1_pct': 'Q1 切换SOC', 'C2_C': 'C2 第二阶段倍率',
+    'avg_chargetime_min': '平均充电时间',
+}
+def _cn(n):
+    if n in FEAT_CN:
+        return FEAT_CN[n]
+    if n.startswith('lat_'):
+        return f'SOH 潜伏时间(<{n[4:]}%)'
+    return n
+imp = imp.rename(index=_cn)
 top = imp.tail(12)
 fig, ax = plt.subplots(figsize=(7.2, 5.2))
 colors = plt.cm.Blues(np.linspace(0.35, 0.85, len(top)))
@@ -328,6 +347,9 @@ save(fig, 'fig10_Pareto前沿.png')
 
 # ================= 图11: 推荐策略电流剖面 =================
 c1, q1, c2 = rec['C1'], rec['Q1'], rec['C2']
+# Q1=80 时第二阶段覆盖为零、C2 不参与实际充电(80% 后直接 1C CC-CV),
+# 优化器在该方向无约束(可取任意值), 按正文约定以 C2=C1 展示 (如 3.6C(80%)-3.6C)
+c2d = c1 if q1 >= 80 else c2
 fig, ax = plt.subplots(figsize=(7.6, 4.4))
 soc = np.array([0, q1, 80, 100]); I = np.array([c1, c2, 1.0, 0.0])
 ax.step(soc, I, where='post', lw=2.6, color=BLUE)
@@ -335,11 +357,12 @@ ax.fill_between(soc, I, step='post', color=BLUE, alpha=0.10)
 ax.axvline(q1, color=MUTED, ls=':', lw=1.0)
 ax.text(q1, c1+0.22, f'Q1={q1:.0f}%', ha='center', fontsize=9, color=INK)
 ax.text(q1/2, c1+0.18, f'{c1:.1f}C', ha='center', fontsize=10, color=BLUE)
-ax.text((q1+80)/2, c2+0.18, f'{c2:.1f}C', ha='center', fontsize=10, color=BLUE)
+if q1 < 80:
+    ax.text((q1+80)/2, c2+0.18, f'{c2:.1f}C', ha='center', fontsize=10, color=BLUE)
 ax.text(90, 1.1, '1C CC-CV', ha='center', fontsize=9, color=MUTED)
 ax.set_xlabel('SOC (%)'); ax.set_ylabel('充电倍率 (C)')
 ax.set_xlim(0, 100); ax.set_ylim(0, c1+0.9)
-ax.set_title(f'推荐快充策略：{c1:.1f}C({q1:.0f}%)-{c2:.1f}C\n'
+ax.set_title(f'推荐快充策略：{c1:.1f}C({q1:.0f}%)-{c2d:.1f}C\n'
              f'T80≈{T80(c1,q1,c2):.1f} min，预测寿命≈{life(c1,q1,c2):.0f}', fontsize=12)
 style_ax(ax)
 fig.tight_layout()
@@ -368,13 +391,14 @@ wT = q4['w']
 T_pred = wT[0]*std['Q1_pct']/100/std['C1_C'] + wT[1]*(80-std['Q1_pct'])/100/std['C2_C'] + wT[2]
 T_obs = std['T'].values
 r = np.corrcoef(T_obs, T_pred)[0, 1]
+mae_T = np.mean(np.abs(T_obs - T_pred))
 fig, ax = plt.subplots(figsize=(6.4, 5.4))
 ax.scatter(T_obs, T_pred, s=28, alpha=0.75, color=BLUE, edgecolor='white', lw=0.4)
 lim = [9, 16]
 ax.plot(lim, lim, color=INK, lw=1.4, ls='--')
 ax.set_xlim(lim); ax.set_ylim(lim)
 ax.set_xlabel('实测充电时间 (min)'); ax.set_ylabel('模型预测充电时间 (min)')
-ax.set_title(f'充电时间校准模型验证\n$r={r:.2f}$，MAE=0.50 min', fontsize=12)
+ax.set_title(f'充电时间校准模型验证\n$r={r:.2f}$，MAE={mae_T:.2f} min', fontsize=12)
 style_ax(ax)
 fig.tight_layout()
 save(fig, 'fig13_充电时间模型验证.png')
@@ -634,8 +658,8 @@ ax.set_xlim(0, 1); ax.set_ylim(0, 1); ax.axis('off')
 steps23 = [
     ('早期循环数据\n（前 k 个循环）', 'SOH · 容量 · 充电时间', BLUE),
     ('特征提取', '斜率 · 波动 · 潜伏时间\n充电时间漂移', ORANGE),
-    ('GBM 回归模型', '5 折×8 次交叉验证\nlog₁₀(寿命) 目标', AQUA),
-    ('预测寿命', 'L̂ = 10^(log₁₀ 寿命)\n达 80% SOH 循环数', VIOLET),
+    ('GBM 回归模型', '5 折×8 次交叉验证\n$\\log_{10}$(寿命) 目标', AQUA),
+    ('预测寿命', '$\\hat{L}=10^{\\hat{y}}$\n达 80% SOH 循环数', VIOLET),
 ]
 xw, xh, ys = 0.21, 0.52, 0.28
 xs = [0.045, 0.275, 0.505, 0.735]
