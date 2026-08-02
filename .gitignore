@@ -1,19 +1,7 @@
-# LaTeX 编译产物（每次编译自动重新生成）
 *.aux
 *.log
-*.fls
-*.fdb_latexmk
 *.out
-*.xdv
 *.synctex.gz
-
-# 编译生成的 PDF（main.pdf 需入库）
-*.pdf
-!main.pdf
-
-# 字体文件（系统自带，无需入库）
-*.ttf
-*.ttc
-
-# 本地工具配置
-.claude/
+*.fdb_latexmk
+*.fls
+*.xdv
