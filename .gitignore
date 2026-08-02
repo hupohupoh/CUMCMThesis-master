@@ -7,8 +7,9 @@
 *.xdv
 *.synctex.gz
 
-# 编译生成的 PDF
+# 编译生成的 PDF（main.pdf 需入库）
 *.pdf
+!main.pdf
 
 # 字体文件（系统自带，无需入库）
 *.ttf
