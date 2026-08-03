@@ -23,12 +23,12 @@ plt.rcParams.update({
     'grid.linewidth': 0.6,
     'axes.spines.top': False,
     'axes.spines.right': False,
-    'axes.titlesize': 12,
-    'axes.labelsize': 11,
-    'xtick.labelsize': 10,
-    'ytick.labelsize': 10,
-    'legend.fontsize': 9,
-    'font.size': 11,
+    'axes.titlesize': 17,
+    'axes.labelsize': 16,
+    'xtick.labelsize': 15,
+    'ytick.labelsize': 15,
+    'legend.fontsize': 14,
+    'font.size': 16,
     'savefig.facecolor': 'white',
 })
 # 分类色板 (dataviz 验证通过)
@@ -39,7 +39,7 @@ INK, MUTED, GRID = '#0b0b0b', '#52514e', '#e1e0d9'
 SEQB = ['#cde2fb', '#9ec5f4', '#6da7ec', '#3987e5', '#2a78d6', '#256abf', '#1c5cab', '#184f95']
 DPI = 220
 
-BASE = r"C:\Users\one\Desktop\2026年校赛题目\B"
+BASE = r"C:\Users\24345\Desktop\数模校赛\complete_solution"
 FIG = os.path.join(BASE, 'data_processed', 'figs')
 # LaTeX 图目录: 本脚本位于 code/ 下, 相对定位到仓库根目录的 figures/ (随仓库迁移)
 TMPL = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'figures')
@@ -100,11 +100,10 @@ for ax, b, c in zip(axes.flat[:3], ['data_1', 'data_2', 'data_3'], [BLUE, ORANGE
     ax.hist(s, bins=18, color=c, edgecolor='white', linewidth=0.6, alpha=0.92)
     ax.axvline(s.median(), color=INK, ls='--', lw=1.0)
     ax.text(s.median(), ax.get_ylim()[1]*0.92, f'中位数 {s.median():.0f}',
-            rotation=90, va='top', ha='right', fontsize=9, color=INK)
-    ax.set_title(f'{b}（n={len(s)}）', fontsize=11)
-    ax.set_xlabel('循环寿命', fontsize=10)
+            rotation=90, va='top', ha='right', fontsize=14, color=INK)
+    ax.set_xlabel('循环寿命', fontsize=15)
     style_ax(ax)
-    ax.set_ylabel('电池数', fontsize=10)
+    ax.set_ylabel('电池数', fontsize=15)
 # 第4格: 三批次箱线图
 ax = axes[1, 1]
 data = [bt[bt['batch'] == b]['cycle_life'].dropna().values for b in ['data_1', 'data_2', 'data_3']]
@@ -113,11 +112,9 @@ bp = ax.boxplot(data, patch_artist=True, widths=0.55,
                 whiskerprops=dict(color=MUTED, lw=1), capprops=dict(color=MUTED, lw=1))
 for patch, c in zip(bp['boxes'], [BLUE, ORANGE, AQUA]):
     patch.set_facecolor(c); patch.set_alpha(0.85)
-ax.set_xticklabels(['data_1', 'data_2', 'data_3'], fontsize=10)
-ax.set_title('三批次循环寿命箱线图', fontsize=11)
-ax.set_ylabel('循环寿命', fontsize=10)
+ax.set_xticklabels(['data_1', 'data_2', 'data_3'], fontsize=15)
+ax.set_ylabel('循环寿命', fontsize=15)
 style_ax(ax)
-fig.suptitle('各批次循环寿命分布', fontsize=13, y=1.0)
 fig.tight_layout()
 save(fig, 'fig1_寿命分布_按批次.png')
 
@@ -133,11 +130,9 @@ for ax, col, lab in zip(axes.flat, ['C1_C', 'Q1_pct', 'C2_C', 'T'],
     z = np.polyfit(std[col], std['cycle_life'], 1)
     ax.plot(x, np.polyval(z, x), color=RED, lw=1.7, ls='--')
     r = np.corrcoef(std[col], std['cycle_life'])[0, 1]
-    ax.set_title(f'{lab}\n$r = {r:.2f}$', fontsize=10)
-    ax.set_xlabel(lab, fontsize=10); ax.set_ylabel('循环寿命', fontsize=10)
+    ax.set_xlabel(lab, fontsize=15); ax.set_ylabel('循环寿命', fontsize=15)
     style_ax(ax)
-axes[0, 0].legend(frameon=False, fontsize=9, loc='upper left')
-fig.suptitle('循环寿命与策略参数关系（standard 批次 1+2，虚线为线性拟合）', fontsize=13, y=0.99)
+axes[0, 0].legend(frameon=False, fontsize=14, loc='upper left')
 fig.tight_layout()
 save(fig, 'fig2_寿命vs参数.png')
 
@@ -145,12 +140,12 @@ save(fig, 'fig2_寿命vs参数.png')
 LONG_POLS = ['4C(80%)-4C', '3.6C(80%)-3.6C', '8C(15%)-3.6C']
 SHORT_POLS = ['5.4C(80%)-5.4C', '8C(35%)-3.6C', '8C(25%)-3.6C']
 def load_soh(fname, cell_idx):
-    with h5py.File(os.path.join(r"C:\Users\one\Desktop", fname), 'r') as f:
+    with h5py.File(os.path.join(r"C:\Users\24345\Desktop\数模校赛", fname), 'r') as f:
         batch = f['batch']
         Qd = np.array(f[batch['summary'][cell_idx, 0]]['QDischarge']).ravel()
         return Qd[1:] / Qd[1] * 100
 def find_cells(fname, policies):
-    with h5py.File(os.path.join(r"C:\Users\one\Desktop", fname), 'r') as f:
+    with h5py.File(os.path.join(r"C:\Users\24345\Desktop\数模校赛", fname), 'r') as f:
         batch = f['batch']
         n = batch['cycle_life'].shape[0]
         found = {}
@@ -168,10 +163,9 @@ for pol in SHORT_POLS:
     soh = load_soh('data_1.mat', cell_idx[pol])
     ax.plot(np.arange(1, len(soh)+1), soh, color=RED, lw=1.7, ls='--', label=f'短寿 {pol}')
 ax.axhline(80, color=MUTED, ls=':', lw=1)
-ax.text(2, 80.8, '80% SOH 阈值', fontsize=9, color=MUTED)
+ax.text(2, 80.8, '80% SOH 阈值', fontsize=14, color=MUTED)
 ax.set_xlabel('循环数'); ax.set_ylabel('SOH (%)')
-ax.legend(frameon=False, fontsize=8, loc='upper right', ncol=2)
-ax.set_title('典型长/短寿命电池 SOH 衰减曲线（批次 1）', fontsize=12)
+ax.legend(frameon=False, fontsize=13, loc='upper right', ncol=2)
 style_ax(ax)
 fig.tight_layout()
 save(fig, 'fig3_SOH曲线对比.png')
@@ -197,10 +191,8 @@ for ax, v in zip(axes.flat, Xnames):
     xx = np.linspace(rx.min(), rx.max(), 40)
     ax.plot(xx, np.polyval(z, xx), color=RED, lw=1.7, ls='--')
     r = np.corrcoef(rx, ry)[0, 1]
-    ax.set_xlabel(f'{v}（残差化）', fontsize=10); ax.set_ylabel('log$_{10}$寿命 残差', fontsize=10)
-    ax.set_title(f'{v}   偏相关 $r={r:.2f}$', fontsize=10)
+    ax.set_xlabel(f'{v}（残差化）', fontsize=15); ax.set_ylabel('log$_{10}$寿命 残差', fontsize=15)
     style_ax(ax)
-fig.suptitle('偏回归图（控制其他变量与批次后，各参数与寿命的关系）', fontsize=13, y=0.99)
 fig.tight_layout()
 save(fig, 'fig4_偏回归图.png')
 
@@ -215,13 +207,12 @@ lim = [0, 2300]   # 从原点起, 等比例保证 45° 对角线与 ±10% 带不
 ax.plot(lim, lim, color=INK, lw=1.4, ls='--')
 ax.plot(lim, [x*0.9 for x in lim], color=MUTED, lw=0.8, ls=':')
 ax.plot(lim, [x*1.1 for x in lim], color=MUTED, lw=0.8, ls=':')
-ax.text(1900, 1830, '+10%', fontsize=9, color=MUTED)
-ax.text(1900, 1710, '−10%', fontsize=9, color=MUTED)
+ax.text(1900, 1830, '+10%', fontsize=14, color=MUTED)
+ax.text(1900, 1710, '−10%', fontsize=14, color=MUTED)
 ax.set_xlim(lim); ax.set_ylim(lim)
 ax.set_aspect('equal')
 ax.set_xlabel('实际循环寿命'); ax.set_ylabel('预测循环寿命')
-ax.set_title('早期 100 循环预测寿命 vs 实际寿命（GBM，交叉验证）', fontsize=12)
-ax.legend(frameon=False, fontsize=9, loc='upper left')
+ax.legend(frameon=False, fontsize=14, loc='upper left')
 style_ax(ax)
 fig.tight_layout()
 save(fig, 'fig6_寿命预测对比.png')
@@ -235,8 +226,7 @@ for mn, c, mk in [('Ridge', BLUE, 'o'), ('RandomForest', ORANGE, 's'), ('Gradien
     ax.plot(windows, vals, marker=mk, color=c, lw=2.0, ms=6, label=mn)
 ax.set_xlabel('早期循环窗口长度 k（个循环）'); ax.set_ylabel('寿命预测 MAPE (%)')
 ax.set_xticks(windows)
-ax.set_title('预测误差随早期数据长度变化（5 折×8 次重复交叉验证）', fontsize=12)
-ax.legend(frameon=False, fontsize=9)
+ax.legend(frameon=False, fontsize=14)
 style_ax(ax)
 fig.tight_layout()
 save(fig, 'fig7_MAPE_vs窗口.png')
@@ -265,7 +255,6 @@ top = imp.tail(12)
 fig, ax = plt.subplots(figsize=(7.2, 5.2))
 colors = plt.cm.Blues(np.linspace(0.35, 0.85, len(top)))
 ax.barh(top.index, top.values, color=colors, edgecolor='white', linewidth=0.5)
-ax.set_xlabel('特征重要性'); ax.set_title('寿命预测特征重要性（k=100，GradientBoosting）', fontsize=12)
 style_ax(ax)
 fig.tight_layout()
 save(fig, 'fig8_特征重要性.png')
@@ -282,12 +271,10 @@ for ax, batt in zip(axes, sample):
     d20 = cy[cy['battery'] == batt].sort_values('cycle').head(20)
     ax.plot(d20['cycle'], d20['SOH_pct'], color=BLUE, lw=2.2, label='前 20 循环（训练用）')
     ax.axhline(80, color=RED, ls=':', lw=1.0)
-    ax.set_title(f'{batt}\n循环寿命 = {int(cl)}', fontsize=10)
-    ax.set_xlabel('循环数', fontsize=10)
+    ax.set_xlabel('循环数', fontsize=15)
     style_ax(ax)
-axes[0].set_ylabel('SOH (%)', fontsize=10)
-axes[0].legend(frameon=False, fontsize=8, loc='lower left')
-fig.suptitle('代表性电池实际 SOH 轨迹与前 20 循环数据（用于早期预测）', fontsize=13, y=1.03)
+axes[0].set_ylabel('SOH (%)', fontsize=15)
+axes[0].legend(frameon=False, fontsize=13, loc='lower left')
 fig.tight_layout()
 save(fig, 'fig9_轨迹预测演示.png')
 
@@ -312,11 +299,10 @@ ax.scatter(Tg[feas], Lg[feas], s=7, alpha=0.4, color='#9ec5f4', edgecolor='none'
 ax.plot(front['T'], front['life'], '-o', color=RED, lw=2.0, ms=4, label='Pareto 前沿')
 ax.plot(rec['T'], rec['life'], '*', color=INK, ms=20, label=f'推荐（膝点）：{rec["C1"]:.1f}C({rec["Q1"]:.0f}%)-{rec["C2"]:.1f}C')
 ax.annotate(f'推荐\nT80={rec["T"]:.1f} min\n寿命≈{rec["life"]:.0f}', xy=(rec['T'], rec['life']),
-            xytext=(rec['T']-6.5, rec['life']+260), fontsize=9,
+            xytext=(rec['T']-6.5, rec['life']+260), fontsize=12,
             arrowprops=dict(arrowstyle='->', color=MUTED, lw=0.9))
 ax.set_xlabel('充电时间 $T$ (min)'); ax.set_ylabel('预测循环寿命')
-ax.set_title('快充策略 Pareto 前沿（充电时间 vs 预测寿命）', fontsize=12)
-ax.legend(frameon=False, fontsize=9, loc='lower right')
+ax.legend(frameon=False, fontsize=12, loc='lower right')
 style_ax(ax)
 fig.tight_layout()
 save(fig, 'fig10_Pareto前沿.png')
@@ -331,15 +317,13 @@ soc = np.array([0, q1, 80, 100]); I = np.array([c1, c2, 1.0, 0.0])
 ax.step(soc, I, where='post', lw=2.6, color=BLUE)
 ax.fill_between(soc, I, step='post', color=BLUE, alpha=0.10)
 ax.axvline(q1, color=MUTED, ls=':', lw=1.0)
-ax.text(q1, c1+0.22, f'Q1={q1:.0f}%', ha='center', fontsize=9, color=INK)
-ax.text(q1/2, c1+0.18, f'{c1:.1f}C', ha='center', fontsize=10, color=BLUE)
+ax.text(q1, c1+0.22, f'Q1={q1:.0f}%', ha='center', fontsize=14, color=INK)
+ax.text(q1/2, c1+0.18, f'{c1:.1f}C', ha='center', fontsize=15, color=BLUE)
 if q1 < 80:
-    ax.text((q1+80)/2, c2+0.18, f'{c2:.1f}C', ha='center', fontsize=10, color=BLUE)
-ax.text(90, 1.1, '1C CC-CV', ha='center', fontsize=9, color=MUTED)
+    ax.text((q1+80)/2, c2+0.18, f'{c2:.1f}C', ha='center', fontsize=15, color=BLUE)
+ax.text(90, 1.1, '1C CC-CV', ha='center', fontsize=14, color=MUTED)
 ax.set_xlabel('SOC (%)'); ax.set_ylabel('充电倍率 (C)')
 ax.set_xlim(0, 100); ax.set_ylim(0, c1+0.9)
-ax.set_title(f'推荐快充策略：{c1:.1f}C({q1:.0f}%)-{c2d:.1f}C\n'
-             f'T80≈{T80(c1,q1,c2):.1f} min，预测寿命≈{life(c1,q1,c2):.0f}', fontsize=12)
 style_ax(ax)
 fig.tight_layout()
 save(fig, 'fig11_推荐策略剖面.png')
@@ -352,12 +336,11 @@ fig, ax = plt.subplots(figsize=(6.2, 5.2))
 im = ax.imshow(cm, cmap='RdBu_r', vmin=-1, vmax=1)
 for i in range(len(cols)):
     for j in range(len(cols)):
-        ax.text(j, i, f'{cm[i,j]:.2f}', ha='center', va='center', fontsize=9,
+        ax.text(j, i, f'{cm[i,j]:.2f}', ha='center', va='center', fontsize=12,
                 color='white' if abs(cm[i,j]) > 0.5 else INK)
-ax.set_xticks(range(len(cols))); ax.set_xticklabels(labs, fontsize=10)
-ax.set_yticks(range(len(cols))); ax.set_yticklabels(labs, fontsize=10)
-ax.set_title(f'策略参数与循环寿命的相关性矩阵（standard，n={len(std)}）', fontsize=12)
-cb = fig.colorbar(im, ax=ax, pad=0.02); cb.set_label('Pearson 相关系数', fontsize=9)
+ax.set_xticks(range(len(cols))); ax.set_xticklabels(labs, fontsize=13)
+ax.set_yticks(range(len(cols))); ax.set_yticklabels(labs, fontsize=13)
+cb = fig.colorbar(im, ax=ax, pad=0.02); cb.set_label('Pearson 相关系数', fontsize=12)
 style_ax(ax)
 fig.tight_layout()
 save(fig, 'fig12_相关性热力图.png')
@@ -374,7 +357,6 @@ lim = [9, 16]
 ax.plot(lim, lim, color=INK, lw=1.4, ls='--')
 ax.set_xlim(lim); ax.set_ylim(lim)
 ax.set_xlabel('实测充电时间 (min)'); ax.set_ylabel('模型预测充电时间 (min)')
-ax.set_title(f'充电时间校准模型验证\n$r={r:.2f}$，MAE={mae_T:.2f} min', fontsize=12)
 style_ax(ax)
 fig.tight_layout()
 save(fig, 'fig13_充电时间模型验证.png')
@@ -387,9 +369,8 @@ ax.hist(err, bins=25, color=BLUE, edgecolor='white', lw=0.6, alpha=0.92)
 ax.axvline(0, color=INK, ls='--', lw=1.2)
 ax.axvline(err.median(), color=ORANGE, ls='--', lw=1.2)
 ax.text(err.median(), ax.get_ylim()[1]*0.95, f'中位数 {err.median():.1f}%',
-        fontsize=9, color=ORANGE, ha='center', va='top')
+        fontsize=16, color=ORANGE, ha='center', va='top')
 ax.set_xlabel('相对预测误差 (%)'); ax.set_ylabel('电池数')
-ax.set_title('寿命预测相对误差分布（早期 100 循环，GBM）', fontsize=12)
 style_ax(ax)
 fig.tight_layout()
 save(fig, 'fig14_预测误差分布.png')
@@ -417,19 +398,16 @@ ax = axes[0]
 vals = [r[1] for r in cmp_rows]; colors = [r[3] for r in cmp_rows]
 bars = ax.bar(range(len(names)), vals, color=colors, edgecolor='white', lw=0.5, width=0.62)
 for bi, v in enumerate(vals):
-    ax.text(bi, v + 18, f'{v}', ha='center', fontsize=9)
-ax.set_xticks(range(len(names))); ax.set_xticklabels(names, rotation=20, ha='right', fontsize=8.5)
-ax.set_ylabel('实测平均循环寿命'); ax.set_title('实测寿命对比', fontsize=11)
+    ax.text(bi, v + 18, f'{v}', ha='center', fontsize=12)
+ax.set_xticks(range(len(names))); ax.set_xticklabels(names, rotation=20, ha='right', fontsize=11.5)
 style_ax(ax)
 ax = axes[1]
 vals = [r[2] for r in cmp_rows]
 bars = ax.bar(range(len(names)), vals, color=colors, edgecolor='white', lw=0.5, width=0.62)
 for bi, v in enumerate(vals):
-    ax.text(bi, v + 0.15, f'{v}', ha='center', fontsize=9)
-ax.set_xticks(range(len(names))); ax.set_xticklabels(names, rotation=20, ha='right', fontsize=8.5)
-ax.set_ylabel('充电时间 $T$ (min)'); ax.set_title('充电时间对比', fontsize=11)
+    ax.text(bi, v + 0.15, f'{v}', ha='center', fontsize=12)
+ax.set_xticks(range(len(names))); ax.set_xticklabels(names, rotation=20, ha='right', fontsize=11.5)
 style_ax(ax)
-fig.suptitle('推荐策略与典型策略对比', fontsize=13, y=1.0)
 fig.tight_layout()
 save(fig, 'fig15_策略对比.png')
 
@@ -445,9 +423,8 @@ bp = ax.boxplot(groups, patch_artist=True, widths=0.5,
                 whiskerprops=dict(color=MUTED, lw=1), capprops=dict(color=MUTED, lw=1))
 for patch, c in zip(bp['boxes'], SEQB[1::2]):
     patch.set_facecolor(c); patch.set_alpha(0.85)
-ax.set_xticklabels(['3.0~3.6', '3.7~4.4', '4.5~5.2', '5.3~6.0'], fontsize=9.5)
-ax.set_xlabel('$C_2$ 档位 (C)', fontsize=10); ax.set_ylabel('充电时间 (min)', fontsize=10)
-ax.set_title('充电时间随 $C_2$ 档位分布', fontsize=11)
+ax.set_xticklabels(['3.0~3.6', '3.7~4.4', '4.5~5.2', '5.3~6.0'], fontsize=14.5)
+ax.set_xlabel('$C_2$ 档位 (C)', fontsize=15); ax.set_ylabel('充电时间 (min)', fontsize=15)
 style_ax(ax)
 ax = axes[1]
 ideal = 60*std['Q1_pct']/100/std['C1_C'] + 60*(80-std['Q1_pct'])/100/std['C2_C']
@@ -455,10 +432,8 @@ ax.scatter(ideal, std['T'], s=26, alpha=0.75, color=BLUE, edgecolor='white', lw=
 lim = [8, 16]
 ax.plot(lim, lim, color=INK, lw=1.4, ls='--')
 ax.set_xlim(lim); ax.set_ylim(lim)
-ax.set_xlabel('理想模型充电时间 (min)', fontsize=10); ax.set_ylabel('实测充电时间 (min)', fontsize=10)
-ax.set_title('实测 vs 理想充电时间', fontsize=11)
+ax.set_xlabel('理想模型充电时间 (min)', fontsize=15); ax.set_ylabel('实测充电时间 (min)', fontsize=15)
 style_ax(ax)
-fig.suptitle(f'充电时间分析（standard，n={len(std)}）', fontsize=13, y=1.02)
 fig.tight_layout()
 save(fig, 'fig17_充电时间分析.png')
 
@@ -474,15 +449,12 @@ ax = axes[0]
 ax.scatter(fitted, resid, s=26, alpha=0.75, color=BLUE, edgecolor='white', lw=0.4)
 ax.axhline(0, color=RED, lw=1.4, ls='--')
 ax.set_xlabel('拟合值 log$_{10}$寿命'); ax.set_ylabel('残差')
-ax.set_title('残差 vs 拟合值', fontsize=11)
 style_ax(ax)
 ax = axes[1]
 ax.hist(resid, bins=18, color=BLUE, edgecolor='white', lw=0.6, alpha=0.92)
 ax.axvline(0, color=RED, lw=1.4, ls='--')
 ax.set_xlabel('残差'); ax.set_ylabel('频数')
-ax.set_title('残差直方图（近正态、无偏）', fontsize=11)
 style_ax(ax)
-fig.suptitle(f'问题二回归模型残差诊断（n={len(std)}）', fontsize=13, y=1.02)
 fig.tight_layout()
 save(fig, 'fig18_回归残差诊断.png')
 
@@ -498,70 +470,55 @@ for batt, c, lab in cells:
     d = cy2[cy2['battery'] == batt].sort_values('cycle').head(60)
     ax.plot(d['cycle'], d['SOH_pct'], color=c, lw=1.8, label=lab)
 ax.set_xlabel('循环数'); ax.set_ylabel('SOH (%)')
-ax.set_title('前 60 个循环的 SOH 演化（不同寿命特征电池）', fontsize=12)
-ax.legend(frameon=False, fontsize=9, loc='upper right')
+ax.legend(frameon=False, fontsize=14, loc='upper right')
 style_ax(ax)
 fig.tight_layout()
 save(fig, 'fig19_早期SOH演化.png')
 
-# ================= 图20: 方法流程示意图 (高级版: 圆角卡片/色条/徽章/阴影) =================
-def _tint(hexc, w_frac):
-    r, g, b = int(hexc[1:3], 16), int(hexc[3:5], 16), int(hexc[5:7], 16)
-    return (r + (255 - r) * w_frac) / 255, (g + (255 - g) * w_frac) / 255, (b + (255 - b) * w_frac) / 255
-
-VIOLET = '#4a3aa7'
-fig, ax = plt.subplots(figsize=(10.5, 3.7))
+# ================= 图20: 方法流程示意图 (简洁现代风格) =================
+VIOLET2 = '#4a3aa7'
+fig, ax = plt.subplots(figsize=(12, 4.0))
 ax.set_xlim(0, 1); ax.set_ylim(0, 1); ax.axis('off')
 steps = [
     ('数据整理', '问题一', '策略参数 · 寿命 · SOH\n异常清洗 · 单位校准', BLUE),
     ('量化建模', '问题二', '多变量回归 · 剂量模型\n批次差异 · 交互项', ORANGE),
-    ('寿命预测', '问题三', '早期特征 · GBM\n5 折×8 次交叉验证', AQUA),
-    ('策略优化', '问题四', '充电时间模型 · Pareto\n推荐策略 · 外推边界', VIOLET),
+    ('寿命预测', '问题三', '早期特征 · GBM\n5折×8次交叉验证', AQUA),
+    ('策略优化', '问题四', '充电时间模型 · Pareto\n推荐策略 · 外推边界', VIOLET2),
 ]
-xw, xh, ys = 0.205, 0.42, 0.40
-xs = [0.055, 0.285, 0.515, 0.745]
+xw, xh, ys = 0.18, 0.55, 0.28
+gap = 0.04
+total_w = 4*xw + 3*gap
+xs = [(1-total_w)/2 + i*(xw+gap) for i in range(4)]
 for k, (title, prob, desc, col) in enumerate(steps):
     x0 = xs[k]
-    # 柔和阴影
-    ax.add_patch(FancyBboxPatch((x0 + 0.010, ys - 0.016), xw, xh,
-                 boxstyle='round,pad=0.010,rounding_size=0.018', fc='black', ec='none',
-                 alpha=0.10, zorder=1))
-    # 卡片主体
+    # 卡片主体 — 纯白底 + 细边框
     ax.add_patch(FancyBboxPatch((x0, ys), xw, xh,
-                 boxstyle='round,pad=0.010,rounding_size=0.018',
-                 fc=_tint(col, 0.90), ec='#c3c2b7', lw=0.9, zorder=2))
-    # 顶部色条
-    ax.add_patch(FancyBboxPatch((x0 + 0.014, ys + xh - 0.012), xw - 0.028, 0.026,
-                 boxstyle='round,pad=0,rounding_size=0.01', fc=col, ec='none', zorder=3))
-    # 左侧色条(粗)
-    ax.add_patch(Rectangle((x0 + 0.012, ys + 0.025), 0.012, xh - 0.055,
-                 fc=col, ec='none', zorder=3))
-    # 编号徽章
-    ax.add_patch(Circle((x0 + 0.045, ys + xh - 0.085), 0.028, fc=col, ec='white', lw=1.5, zorder=4))
-    ax.text(x0 + 0.045, ys + xh - 0.085, str(k + 1), ha='center', va='center', fontsize=9.5,
-            color='white', fontweight='bold', zorder=5)
+                 boxstyle='round,pad=0.008,rounding_size=0.015',
+                 fc='white', ec='#d0d0d0', lw=1.0, zorder=2))
+    # 左侧细色条
+    ax.add_patch(Rectangle((x0, ys+0.04), 0.008, xh-0.08, fc=col, ec='none', zorder=3))
+    # 编号
+    ax.text(x0 + 0.035, ys + xh - 0.08, str(k+1), ha='center', va='center',
+            fontsize=16, color=col, fontweight='bold', zorder=4)
     # 标题
-    ax.text(x0 + xw / 2 + 0.012, ys + xh - 0.13, title, ha='center', va='center',
-            fontsize=13, color=INK, fontweight='bold', zorder=5)
+    ax.text(x0 + xw/2, ys + xh - 0.16, title, ha='center', va='center',
+            fontsize=18, color=INK, fontweight='bold', zorder=4)
     # 问题标识
-    ax.text(x0 + xw / 2 + 0.012, ys + xh - 0.21, prob, ha='center', va='center',
-            fontsize=9.5, color=col, fontweight='bold', zorder=5)
-    # 分隔细线
-    ax.plot([x0 + 0.03, x0 + xw - 0.03], [ys + 0.185, ys + 0.185], color='#d8d7cf', lw=0.8, zorder=5)
+    ax.text(x0 + xw/2, ys + xh - 0.28, prob, ha='center', va='center',
+            fontsize=13, color=col, fontweight='bold', zorder=4)
+    # 细线
+    ax.plot([x0+0.06, x0+xw-0.06], [ys+xh-0.34, ys+xh-0.34], color='#e8e8e8', lw=0.6, zorder=4)
     # 描述
-    ax.text(x0 + xw / 2 + 0.012, ys + 0.115, desc, ha='center', va='center',
-            fontsize=8.2, color=MUTED, linespacing=1.5, zorder=5)
-    # 连接箭头(平滑)
+    ax.text(x0 + xw/2, ys + xh/2 - 0.06, desc, ha='center', va='center',
+            fontsize=13, color=MUTED, linespacing=1.6, zorder=4)
+    # 连接箭头
     if k < 3:
-        ax.annotate('', xy=(xs[k + 1] - 0.010, ys + xh / 2), xytext=(x0 + xw + 0.012, ys + xh / 2),
-                    arrowprops=dict(arrowstyle='-|>', color=MUTED, lw=2.0, mutation_scale=18,
-                                    connectionstyle='arc3,rad=0.0', shrinkA=0, shrinkB=0))
-        # 箭头下方小圆点
-        ax.add_patch(Circle(((x0 + xw + xs[k + 1]) / 2, ys + xh / 2), 0.009, fc=MUTED, ec='none', alpha=0.6))
-# 底部注记
-ax.plot([0.12, 0.88], [0.135, 0.135], color='#d8d7cf', lw=0.8)
-ax.text(0.5, 0.075, '前一问题的输出作为后一问题的输入，形成闭环', ha='center',
-        fontsize=9.5, color=MUTED)
+        ax.annotate('', xy=(xs[k+1]-0.006, ys+xh/2), xytext=(x0+xw+0.006, ys+xh/2),
+                    arrowprops=dict(arrowstyle='->', color='#b0b0b0', lw=2.2, mutation_scale=22))
+# 底部闭环箭头 + 注记
+ax.plot([0.2, 0.8], [0.10, 0.10], color='#d0d0d0', lw=0.6)
+ax.text(0.5, 0.045, '前一问题的输出 → 后一问题的输入，形成闭环', ha='center',
+        fontsize=14, color=MUTED)
 fig.tight_layout()
 save(fig, 'fig20_方法流程.png')
 
@@ -582,9 +539,8 @@ bp = ax.boxplot(groups, patch_artist=True, widths=0.5,
 for patch, c in zip(bp['boxes'], [BLUE, ORANGE]):
     patch.set_facecolor(c); patch.set_alpha(0.85)
 ax.axhline(0, color=RED, lw=1.2, ls='--')
-ax.set_xticklabels(['批次 1', '批次 2'], fontsize=10)
+ax.set_xticklabels(['批次 1', '批次 2'], fontsize=15)
 ax.set_xlabel('批次'); ax.set_ylabel('寿命残差（实测 − 模型预测）')
-ax.set_title('剂量模型残差按批次分布（批次 2 系统性偏低）', fontsize=12)
 style_ax(ax)
 fig.tight_layout()
 save(fig, 'fig21_批次差异.png')
@@ -603,33 +559,43 @@ for batt, c, lab in cells22:
     d = d.head(600)
     ax.plot(d['cycle'], d['chargetime_min'], color=c, lw=1.6, label=lab)
 ax.set_xlabel('循环数'); ax.set_ylabel('充电时间 (min)')
-ax.set_title('充电时间随循环的演化（内阻增长指示）', fontsize=12)
-ax.legend(frameon=False, fontsize=9, loc='upper left')
+ax.legend(frameon=False, fontsize=14, loc='upper left')
 style_ax(ax)
 fig.tight_layout()
 save(fig, 'fig22_充电时间演化.png')
 
-# ================= 图23: 问题三预测流程 =================
-fig, ax = plt.subplots(figsize=(10.5, 2.2))
+# ================= 图23: 问题三预测流程 (简洁现代风格) =================
+fig, ax = plt.subplots(figsize=(12, 3.0))
 ax.set_xlim(0, 1); ax.set_ylim(0, 1); ax.axis('off')
-# 4 个环节
 steps23 = [
     ('早期循环数据\n（前 k 个循环）', 'SOH · 容量 · 充电时间', BLUE),
     ('特征提取', '斜率 · 波动 · 潜伏时间\n充电时间漂移', ORANGE),
-    ('GBM 回归模型', '5 折×8 次交叉验证\n$\\log_{10}$(寿命) 目标', AQUA),
-    ('预测寿命', '$\\hat{L}=10^{\\hat{y}}$\n达 80% SOH 循环数', VIOLET),
+    ('GBM 回归模型', '5折x8次交叉验证\nlog10(寿命) 目标', AQUA),
+    ('预测寿命', 'L = 10^y\n达 80% SOH 循环数', VIOLET2),
 ]
-xw, xh, ys = 0.21, 0.52, 0.28
-xs = [0.045, 0.275, 0.505, 0.735]
+xw, xh, ys = 0.18, 0.55, 0.26
+gap = 0.04
+total_w = 4*xw + 3*gap
+xs = [(1-total_w)/2 + i*(xw+gap) for i in range(4)]
 for k, (t1, t2, col) in enumerate(steps23):
     x0 = xs[k]
-    ax.add_patch(FancyBboxPatch((x0, ys), xw, xh, boxstyle='round,pad=0.008,rounding_size=0.02',
-                 fc=_tint(col, 0.90), ec=col, lw=1.4, zorder=2))
-    ax.text(x0+xw/2, ys+xh*0.68, t1, ha='center', va='center', fontsize=10.5, color=INK, fontweight='bold', zorder=3)
-    ax.text(x0+xw/2, ys+xh*0.26, t2, ha='center', va='center', fontsize=8, color=MUTED, linespacing=1.4, zorder=3)
+    # 白底卡片 + 细边框
+    ax.add_patch(FancyBboxPatch((x0, ys), xw, xh, boxstyle='round,pad=0.008,rounding_size=0.015',
+                 fc='white', ec='#d0d0d0', lw=1.0, zorder=2))
+    # 左侧细色条
+    ax.add_patch(Rectangle((x0, ys+0.04), 0.008, xh-0.08, fc=col, ec='none', zorder=3))
+    # 标题
+    ax.text(x0+xw/2, ys+xh*0.70, t1, ha='center', va='center',
+            fontsize=17, color=INK, fontweight='bold', zorder=4)
+    # 细线
+    ax.plot([x0+0.05, x0+xw-0.05], [ys+xh*0.42, ys+xh*0.42], color='#e8e8e8', lw=0.6, zorder=4)
+    # 描述
+    ax.text(x0+xw/2, ys+xh*0.18, t2, ha='center', va='center',
+            fontsize=13, color=MUTED, linespacing=1.5, zorder=4)
+    # 箭头
     if k < 3:
-        ax.annotate('', xy=(xs[k+1]-0.012, ys+xh/2), xytext=(x0+xw+0.012, ys+xh/2),
-                    arrowprops=dict(arrowstyle='-|>', color=MUTED, lw=2.0, mutation_scale=18))
+        ax.annotate('', xy=(xs[k+1]-0.006, ys+xh/2), xytext=(x0+xw+0.006, ys+xh/2),
+                    arrowprops=dict(arrowstyle='->', color='#b0b0b0', lw=2.2, mutation_scale=22))
 fig.tight_layout()
 save(fig, 'fig23_预测流程.png')
 

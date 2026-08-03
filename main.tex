@@ -22,6 +22,9 @@
 % 等宽字体回退: 支持 ≈ ∈ 等符号 (Windows 上若无 DejaVu 则沿用默认)
 \IfFontExistsTF{DejaVu Sans Mono}{\setmonofont{DejaVu Sans Mono}}{}
 
+\usepackage{tikz}
+\usetikzlibrary{positioning,arrows.meta,calc,backgrounds}
+
 \begin{document}
 
 % 电子版提交时不要承诺书与编号页(withoutpreface 已跳过)，\maketitle 生成标题
@@ -38,13 +41,17 @@
 
 对于问题四，在数据驱动优化基础上引入 PyBaMM 电化学仿真进行机理验证，构建校准充电时间模型与剂量型寿命响应面，在实验覆盖邻域内做多目标网格寻优得到 Pareto 前沿，膝点策略 3.6C(80\%)-3.6C（充电 13.3 min、实测寿命 2081）；进一步突破两段式局限，搜索任意 SOC 分段的多段阶梯充电策略，最优三段式 3C→45\%→2C→65\%→0.8C 预测寿命达 3868 次（较最优两段式提升 160\%），并经 PyBaMM 单循环析锂验证外推安全性，实现了从“已知策略择优”到“新策略设计创新”的方法论升级。
 
-\keywords{电池快充\quad 循环寿命\quad 剂量模型\quad 寿命预测\quad PyBaMM 电化学仿真\quad 多段阶梯充电}
+\keywords{电池快充\quad 循环寿命\quad 剂量模型\quad 寿命预测\quad PyBaMM\quad 多段充电}
 \end{abstract}
 
 % ==================== 一、问题重述 ====================
 \section{问题重述}
 
-锂离子电池在循环使用过程中可用容量逐渐下降，通常以健康状态 $\mathrm{SOH}=Q_{\mathrm{current}}/Q_{\mathrm{initial}}\times100\%$ 表征老化程度，当 SOH 降至 80\% 时认为达到寿命终止条件。快充能显著缩短补能时间，但较高充电电流会加剧极化、热效应与副反应，加快容量衰减。不同 SOC 区间内电池对充电电流的敏感程度不同：低 SOC 区间采用较大电流有助于缩短充电时间，而中高 SOC 区间继续高倍率充电则可能加剧老化。
+锂离子电池在循环使用过程中可用容量逐渐下降，通常以健康状态（SOH）表征老化程度：
+\[
+\mathrm{SOH}=\frac{Q_{\mathrm{current}}}{Q_{\mathrm{initial}}}\times 100\%,
+\]
+当 SOH 降至 80\% 时认为达到寿命终止条件。快充能显著缩短补能时间，但较高充电电流会加剧极化、热效应与副反应，加快容量衰减。不同 SOC 区间内电池对充电电流的敏感程度不同：低 SOC 区间采用较大电流有助于缩短充电时间，而中高 SOC 区间继续高倍率充电则可能加剧老化。
 
 本数据集为 MIT--Stanford 公开锂离子电池循环老化数据集\upcite{ref1}，共 124 个 A123 18650 磷酸铁锂电池（额定容量 1.1 Ah），分三个批次（41/43/40）。充电采用分段快充策略，可表示为：先以 $C_1$ 倍率从 0\% SOC 充电至 $Q_1$，再以 $C_2$ 倍率从 $Q_1$ 充电至 80\% SOC，最后以 1C 恒流--恒压（CC-CV）模式充电至满电。不同电池的差异主要体现于 $C_1$、$Q_1$、$C_2$ 三个参数。需要说明的是，本文中 “C” 表示充放电倍率（即以额定容量为基准的电流倍数，如 3.6C 表示充电电流为 3.6$\times$1.1 A）。
 
@@ -71,7 +78,72 @@
 
 \begin{figure}[htbp]
 \centering
-\includegraphics[width=1.0\textwidth]{figures/fig20.png}
+\resizebox{\textwidth}{!}{%
+\begin{tikzpicture}[
+    node distance=1.6cm,
+    box/.style={
+        rectangle, rounded corners=6pt, draw=#1!60, line width=1.0pt,
+        minimum width=3.2cm, minimum height=3.6cm,
+        fill=white, inner sep=0pt, align=center
+    },
+    bar/.style={
+        rectangle, rounded corners=4pt, fill=#1,
+        minimum width=2.8cm, minimum height=0.35cm, anchor=north
+    },
+    circ/.style={
+        circle, draw=white, fill=#1, line width=1.2pt,
+        minimum size=0.6cm, inner sep=0pt, font=\bfseries\color{white}
+    },
+    arrow/.style={
+        ->, >=stealth, line width=1.8pt, color=#1!50
+    },
+]
+% Colors from paper: BLUE #2a78d6, ORANGE #eb6834, AQUA #1baf7a, VIOLET #4a3aa7
+\definecolor{c1}{HTML}{2a78d6}
+\definecolor{c2}{HTML}{eb6834}
+\definecolor{c3}{HTML}{1baf7a}
+\definecolor{c4}{HTML}{4a3aa7}
+
+% Node 1: Data
+\node[box=c1] (n1) at (0,0) {};
+\node[bar=c1] at (n1.north) {};
+\node[circ=c1] at ([yshift=-0.42cm]n1.north) {1};
+\node[font=\bfseries\Large] at ([yshift=-1.05cm]n1.north) {数据整理};
+\node[font=\small\color{c1!80!black}] at ([yshift=-1.55cm]n1.north) {问题一};
+\node[font=\footnotesize, text width=2.6cm, align=center, color=black!60] at ([yshift=-2.8cm]n1.north) {策略参数·寿命·SOH\\异常清洗·单位校准};
+
+% Node 2: Model
+\node[box=c2, right=of n1, xshift=1.2cm] (n2) {};
+\node[bar=c2] at (n2.north) {};
+\node[circ=c2] at ([yshift=-0.42cm]n2.north) {2};
+\node[font=\bfseries\Large] at ([yshift=-1.05cm]n2.north) {量化建模};
+\node[font=\small\color{c2!80!black}] at ([yshift=-1.55cm]n2.north) {问题二};
+\node[font=\footnotesize, text width=2.6cm, align=center, color=black!60] at ([yshift=-2.8cm]n2.north) {多变量回归·剂量模型\\批次差异·交互效应};
+
+% Node 3: Predict
+\node[box=c3, right=of n2, xshift=1.2cm] (n3) {};
+\node[bar=c3] at (n3.north) {};
+\node[circ=c3] at ([yshift=-0.42cm]n3.north) {3};
+\node[font=\bfseries\Large] at ([yshift=-1.05cm]n3.north) {寿命预测};
+\node[font=\small\color{c3!80!black}] at ([yshift=-1.55cm]n3.north) {问题三};
+\node[font=\footnotesize, text width=2.6cm, align=center, color=black!60] at ([yshift=-2.8cm]n3.north) {早期特征·GBM模型\\5折x8次交叉验证};
+
+% Node 4: Optimize
+\node[box=c4, right=of n3, xshift=1.2cm] (n4) {};
+\node[bar=c4] at (n4.north) {};
+\node[circ=c4] at ([yshift=-0.42cm]n4.north) {4};
+\node[font=\bfseries\Large] at ([yshift=-1.05cm]n4.north) {策略优化};
+\node[font=\small\color{c4!80!black}] at ([yshift=-1.55cm]n4.north) {问题四};
+\node[font=\footnotesize, text width=2.6cm, align=center, color=black!60] at ([yshift=-2.8cm]n4.north) {充电时间模型·Pareto\\推荐策略·外推边界};
+
+% Arrows between nodes
+\draw[arrow=c1] (n1.east) -- (n2.west);
+\draw[arrow=c2] (n2.east) -- (n3.west);
+\draw[arrow=c3] (n3.east) -- (n4.west);
+
+
+\end{tikzpicture}%
+}
 \caption{本文研究流程（四问题递进）}
 \label{fig:fig20}
 \end{figure}
@@ -153,6 +225,7 @@ data\_3（2018-08） & 40 & 3.7C$\sim$5.9C & newstructure \\
 \centering
 \caption{电池级汇总表（节选）}
 \label{tab:battery}
+\resizebox{\textwidth}{!}{%
 \begin{tabular}{cccccccc}
 \toprule
 电池 & 批次 & 策略 & $C_1$(C) & $Q_1$(\%) & $C_2$(C) & 循环寿命 & 充电时间(min) \\
@@ -162,7 +235,8 @@ data\_1\_cell03 & data\_1 & 4C(80\%)-4C & 4.0 & 80 & 4.0 & 1432 & 12.4 \\
 data\_2\_cell00 & data\_2 & 1C(4\%)-6C & 1.0 & 4 & 6.0 & 300 & 12.8 \\
 data\_2\_cell01 & data\_2 & 2C(10\%)-6C & 2.0 & 10 & 6.0 & 148 & 12.5 \\
 \bottomrule
-\end{tabular}
+\end{tabular}%
+}
 \end{table}
 
 % ==================== 六、问题一 ====================
@@ -217,6 +291,7 @@ data\_3 & 40 & 540 & 964 & 1934 & 1031 \\
 \centering
 \caption{典型长寿命策略}
 \label{tab:long}
+\resizebox{\textwidth}{!}{%
 \begin{tabular}{ccccccc}
 \toprule
 策略 & 电池数 & 平均寿命 & $C_1$(C) & $Q_1$(\%) & $C_2$(C) & 充电时间(min) \\
@@ -225,13 +300,15 @@ data\_3 & 40 & 540 & 964 & 1934 & 1031 \\
 4C(80\%)-4C & 2 & 1570 & 4.0 & 80 & 4.0 & 12.3 \\
 4.4C(80\%)-4.4C & 1 & 1073 & 4.4 & 80 & 4.4 & 11.6 \\
 \bottomrule
-\end{tabular}
+\end{tabular}%
+}
 \end{table}
 
 \begin{table}[htbp]
 \centering
 \caption{典型短寿命策略}
 \label{tab:short}
+\resizebox{\textwidth}{!}{%
 \begin{tabular}{ccccccc}
 \toprule
 策略 & 电池数 & 平均寿命 & $C_1$(C) & $Q_1$(\%) & $C_2$(C) & 充电时间(min) \\
@@ -240,7 +317,8 @@ data\_3 & 40 & 540 & 964 & 1934 & 1031 \\
 1C(4\%)-6C & 1 & 300 & 1.0 & 4 & 6.0 & 12.8 \\
 2C(7\%)-5.5C & 1 & 335 & 2.0 & 7 & 5.5 & 12.2 \\
 \bottomrule
-\end{tabular}
+\end{tabular}%
+}
 \end{table}
 
 \begin{figure}[htbp]
@@ -517,7 +595,59 @@ $C_2\times Q_1$ & $+0.0046$ & $<0.0001$ \\
 
 \begin{figure}[htbp]
 \centering
-\includegraphics[width=1.0\textwidth]{figures/fig23.png}
+\resizebox{\textwidth}{!}{%
+\begin{tikzpicture}[
+    node distance=2.0cm,
+    databox/.style={
+        rectangle, rounded corners=5pt, draw=#1!55, line width=1.0pt,
+        minimum width=3.0cm, minimum height=2.8cm,
+        fill=white, inner sep=0pt, align=center
+    },
+    bar/.style={
+        rectangle, rounded corners=3pt, fill=#1,
+        minimum width=2.5cm, minimum height=0.30cm, anchor=north
+    },
+    arrow/.style={
+        ->, >=stealth, line width=1.6pt, color=black!35
+    },
+]
+% Same colors
+\definecolor{c1}{HTML}{2a78d6}
+\definecolor{c2}{HTML}{eb6834}
+\definecolor{c3}{HTML}{1baf7a}
+\definecolor{c4}{HTML}{4a3aa7}
+
+% Node 1: Data
+\node[databox=c1] (d1) at (0,0) {};
+\node[bar=c1] at (d1.north) {};
+\node[font=\bfseries\large] at ([yshift=-0.85cm]d1.north) {早期循环数据};
+\node[font=\footnotesize, text width=2.4cm, align=center, color=black!55] at ([yshift=-1.8cm]d1.north) {前 $k$ 个循环\\SOH · 容量 · 充电时间};
+
+% Node 2: Features
+\node[databox=c2, right=of d1, xshift=1.0cm] (d2) {};
+\node[bar=c2] at (d2.north) {};
+\node[font=\bfseries\large] at ([yshift=-0.85cm]d2.north) {特征提取};
+\node[font=\footnotesize, text width=2.4cm, align=center, color=black!55] at ([yshift=-1.8cm]d2.north) {斜率 · 波动\\潜伏时间 · 漂移};
+
+% Node 3: Model
+\node[databox=c3, right=of d2, xshift=1.0cm] (d3) {};
+\node[bar=c3] at (d3.north) {};
+\node[font=\bfseries\large] at ([yshift=-0.85cm]d3.north) {GBM 回归模型};
+\node[font=\footnotesize, text width=2.4cm, align=center, color=black!55] at ([yshift=-1.8cm]d3.north) {5折$\times$8次交叉验证\\$\log_{10}$(寿命) 为目标};
+
+% Node 4: Output
+\node[databox=c4, right=of d3, xshift=1.0cm] (d4) {};
+\node[bar=c4] at (d4.north) {};
+\node[font=\bfseries\large] at ([yshift=-0.85cm]d4.north) {预测寿命};
+\node[font=\footnotesize, text width=2.4cm, align=center, color=black!55] at ([yshift=-1.8cm]d4.north) {$\hat L = 10^{\hat y}$\\达 80\% SOH 循环数};
+
+% Arrows
+\draw[arrow] (d1.east) -- (d2.west);
+\draw[arrow] (d2.east) -- (d3.west);
+\draw[arrow] (d3.east) -- (d4.west);
+
+\end{tikzpicture}%
+}
 \caption{寿命预测流程：早期循环数据 $\rightarrow$ 特征提取 $\rightarrow$ GBM 模型 $\rightarrow$ 预测寿命}
 \label{fig:fig23}
 \end{figure}
@@ -677,6 +807,7 @@ Pareto 前沿（图 \ref{fig:fig10}）清晰呈现“充电时间越短、预测
 \centering
 \caption{固定充电时间/固定寿命下的最优策略对照}
 \label{tab:iso}
+\resizebox{\textwidth}{!}{%
 \begin{tabular}{llccccc}
 \toprule
 约束 & 目标值 & 最优策略 & $T$(min) & 预测寿命 & 实测寿命 \\
@@ -690,7 +821,8 @@ Pareto 前沿（图 \ref{fig:fig10}）清晰呈现“充电时间越短、预测
  & $\approx 1400$ & 4C(80\%)-4C & 12.6 & 1369 & 1570 \\
  & $\approx 1700$ & 3.6C(80\%)-3.6C & 13.3 & 1794 & 2081 \\
 \bottomrule
-\end{tabular}
+\end{tabular}%
+}
 \end{table}
 
 \subsection{多分段策略与可调权重优化}
@@ -733,6 +865,7 @@ T=60\sum_{i=1}^{N}\frac{s_i-s_{i-1}}{I_i},\qquad
 \centering
 \caption{推荐策略与典型策略对比}
 \label{tab:compare}
+\resizebox{\textwidth}{!}{%
 \begin{tabular}{ccccccc}
 \toprule
 策略 & $C_1$(C) & $Q_1$(\%) & $C_2$(C) & $T$(min) & 预测寿命 & 实测寿命 \\
@@ -744,7 +877,8 @@ T=60\sum_{i=1}^{N}\frac{s_i-s_{i-1}}{I_i},\qquad
 1C(4\%)-6C & 1.0 & 4 & 6.0 & 11.3 & 231 & 300 \\
 2C(10\%)-6C & 2.0 & 10 & 6.0 & 11.3 & 287 & 148 \\
 \bottomrule
-\end{tabular}
+\end{tabular}%
+}
 \end{table}
 
 \begin{figure}[htbp]
@@ -775,6 +909,7 @@ T=60\sum_{i=1}^{N}\frac{s_i-s_{i-1}}{I_i},\qquad
 \centering
 \caption{多段阶梯充电策略优化结果（代表性策略节选）}
 \label{tab:multistage}
+\resizebox{\textwidth}{!}{%
 \begin{tabular}{lcccccc}
 \toprule
 策略 & 段数 & T80(min) & 预测寿命 & $m_{\mathrm{low}}$ & $m_{\mathrm{mid}}$ & 类型 \\
@@ -790,7 +925,8 @@ T=60\sum_{i=1}^{N}\frac{s_i-s_{i-1}}{I_i},\qquad
 \midrule
 6C→10\%→4C→30\%→2C→60\%→1C & 4 & 19.9 & 2954 & 1.60 & 0.60 & 四段 \\
 \bottomrule
-\end{tabular}
+\end{tabular}%
+}
 \end{table}
 
 \subsection{合理性、适用范围与外推风险}

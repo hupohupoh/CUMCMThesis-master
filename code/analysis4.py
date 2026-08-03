@@ -8,7 +8,7 @@
 import pandas as pd, numpy as np, os, sys, io
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
 
-BASE = r"C:\Users\one\Desktop\2026年校赛题目\B"
+BASE = r"C:\Users\24345\Desktop\数模校赛\complete_solution"
 
 bt = pd.read_csv(os.path.join(BASE, 'data_processed', 'battery_table_124.csv'))
 bt['cycle_life'] = pd.to_numeric(bt['cycle_life'], errors='coerce')

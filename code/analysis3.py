@@ -15,7 +15,7 @@ from sklearn.ensemble import RandomForestRegressor, GradientBoostingRegressor
 from sklearn.metrics import r2_score, mean_absolute_error
 from sklearn.preprocessing import StandardScaler
 
-BASE = r"C:\Users\one\Desktop\2026年校赛题目\B"
+BASE = r"C:\Users\24345\Desktop\数模校赛\complete_solution"
 
 cy = pd.read_csv(os.path.join(BASE, 'data_processed', '每循环明细表_124.csv'))
 bt = pd.read_csv(os.path.join(BASE, 'data_processed', 'battery_table_124.csv'))

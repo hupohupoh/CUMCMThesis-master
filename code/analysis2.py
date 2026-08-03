@@ -7,7 +7,7 @@ import pandas as pd, numpy as np, os, math, sys, io
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
 from scipy import stats
 
-BASE = r"C:\Users\one\Desktop\2026年校赛题目\B"
+BASE = r"C:\Users\24345\Desktop\数模校赛\complete_solution"
 
 df = pd.read_csv(os.path.join(BASE, 'data_processed', 'battery_table_124.csv'))
 df['cycle_life'] = pd.to_numeric(df['cycle_life'], errors='coerce')
