@@ -66,7 +66,7 @@ NAME = {
     'fig18_回归残差诊断.png': 'fig18.png',
     'fig19_早期SOH演化.png': 'fig19.png',
     'fig20_方法流程.png': 'fig20.png',
-    'fig21_批次效应.png': 'fig21.png',
+    'fig21_批次差异.png': 'fig21.png',
     'fig22_充电时间演化.png': 'fig22.png',
     'fig23_预测流程.png': 'fig23.png',
 }
@@ -314,7 +314,7 @@ ax.plot(rec['T'], rec['life'], '*', color=INK, ms=20, label=f'推荐（膝点）
 ax.annotate(f'推荐\nT80={rec["T"]:.1f} min\n寿命≈{rec["life"]:.0f}', xy=(rec['T'], rec['life']),
             xytext=(rec['T']-6.5, rec['life']+260), fontsize=9,
             arrowprops=dict(arrowstyle='->', color=MUTED, lw=0.9))
-ax.set_xlabel('充电时间 $T_{80}$ (min)'); ax.set_ylabel('预测循环寿命')
+ax.set_xlabel('充电时间 $T$ (min)'); ax.set_ylabel('预测循环寿命')
 ax.set_title('快充策略 Pareto 前沿（充电时间 vs 预测寿命）', fontsize=12)
 ax.legend(frameon=False, fontsize=9, loc='lower right')
 style_ax(ax)
@@ -427,7 +427,7 @@ bars = ax.bar(range(len(names)), vals, color=colors, edgecolor='white', lw=0.5, 
 for bi, v in enumerate(vals):
     ax.text(bi, v + 0.15, f'{v}', ha='center', fontsize=9)
 ax.set_xticks(range(len(names))); ax.set_xticklabels(names, rotation=20, ha='right', fontsize=8.5)
-ax.set_ylabel('充电时间 $T_{80}$ (min)'); ax.set_title('充电时间对比', fontsize=11)
+ax.set_ylabel('充电时间 $T$ (min)'); ax.set_title('充电时间对比', fontsize=11)
 style_ax(ax)
 fig.suptitle('推荐策略与典型策略对比', fontsize=13, y=1.0)
 fig.tight_layout()
@@ -514,7 +514,7 @@ fig, ax = plt.subplots(figsize=(10.5, 3.7))
 ax.set_xlim(0, 1); ax.set_ylim(0, 1); ax.axis('off')
 steps = [
     ('数据整理', '问题一', '策略参数 · 寿命 · SOH\n异常清洗 · 单位校准', BLUE),
-    ('量化建模', '问题二', '多变量回归 · 剂量模型\n批次效应 · 交互项', ORANGE),
+    ('量化建模', '问题二', '多变量回归 · 剂量模型\n批次差异 · 交互项', ORANGE),
     ('寿命预测', '问题三', '早期特征 · GBM\n5 折×8 次交叉验证', AQUA),
     ('策略优化', '问题四', '充电时间模型 · Pareto\n推荐策略 · 外推边界', VIOLET),
 ]
@@ -565,8 +565,8 @@ ax.text(0.5, 0.075, '前一问题的输出作为后一问题的输入，形成�
 fig.tight_layout()
 save(fig, 'fig20_方法流程.png')
 
-# ================= 图21: 批次效应可视化 (策略模型残差按批次) =================
-# 用剂量模型预测寿命, 残差按批次箱线图, 直观展示批次效应
+# ================= 图21: 批次差异可视化 (策略模型残差按批次) =================
+# 用剂量模型预测寿命, 残差按批次箱线图, 直观展示批次差异
 b_l = q4['b_all']
 def _life_dose(C1, Q1, C2):
     m1 = C1 * Q1 / 100; m2 = C2 * (80 - Q1) / 100
@@ -587,7 +587,7 @@ ax.set_xlabel('批次'); ax.set_ylabel('寿命残差（实测 − 模型预测�
 ax.set_title('剂量模型残差按批次分布（批次 2 系统性偏低）', fontsize=12)
 style_ax(ax)
 fig.tight_layout()
-save(fig, 'fig21_批次效应.png')
+save(fig, 'fig21_批次差异.png')
 
 # ================= 图22: 充电时间随循环演化 =================
 cy4 = pd.read_csv(os.path.join(BASE, 'data_processed', '每循环明细表_124.csv'))

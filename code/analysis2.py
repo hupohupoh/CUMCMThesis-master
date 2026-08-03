@@ -44,17 +44,17 @@ def show(name, R, varnames):
         print(f"{v:<16}{R['coef'][i+1]:>10.4f}{R['se'][i+1]:>10.4f}{R['t'][i+1]:>8.2f}{R['pv'][i+1]:>10.4f}")
     print(f"{'(截距)':<16}{R['coef'][0]:>10.4f}")
 
-# ---------- 1. 标准化回归(消除量纲, 含批次效应) ----------
+# ---------- 1. 标准化回归(消除量纲, 含批次差异) ----------
 X_names = ['C1_C', 'Q1_pct', 'C2_C', 'T', 'batch2']
 X = std[X_names].values
 y = std['loglife'].values
 Xs = (X - X.mean(axis=0)) / X.std(axis=0)
 R = ols(Xs, y)
 print("=" * 60); print("一、多变量回归 log10(cycle_life) ~ C1 + Q1 + C2 + 充电时间 + 批次 (标准化)") ; print("=" * 60)
-show("标准化回归 (含批次效应)", R, X_names)
+show("标准化回归 (含批次差异)", R, X_names)
 std_beta = dict(zip(X_names[:4], R['coef'][1:5]))
 rank = sorted(std_beta.items(), key=lambda kv: -abs(kv[1]))
-print("\n策略参数标准化系数排序(按绝对值, 批次效应已吸收):")
+print("\n策略参数标准化系数排序(按绝对值, 批次差异已吸收):")
 for v, b in rank:
     print(f"  {v:<12} beta={b:+.3f}")
 print(f"\n批次2效应: 系数={R['coef'][5]:+.3f}, p={R['pv'][5]:.4f}  (负值表示批次2整体寿命偏低)")
@@ -66,7 +66,7 @@ Rr = ols(Xr, y)
 show("原始尺度回归(仅策略参数)", Rr, Xr_names)
 
 # ---------- 3. Drop-one R2 相对重要性 (含批次) ----------
-print("\n" + "=" * 60); print("二、留一变量 R² 变化 (相对重要性, 含批次效应)"); print("=" * 60)
+print("\n" + "=" * 60); print("二、留一变量 R² 变化 (相对重要性, 含批次差异)"); print("=" * 60)
 base_r2 = R['r2']
 print(f"全模型 R^2 = {base_r2:.4f}")
 imp = {}
