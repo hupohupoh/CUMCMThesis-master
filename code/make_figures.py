@@ -52,7 +52,6 @@ NAME = {
     'fig2_寿命vs参数.png': 'fig2.png',
     'fig3_SOH曲线对比.png': 'fig3.png',
     'fig4_偏回归图.png': 'fig4.png',
-    'fig5_寿命热力图.png': 'fig5.png',
     'fig6_寿命预测对比.png': 'fig6.png',
     'fig7_MAPE_vs窗口.png': 'fig7.png',
     'fig8_特征重要性.png': 'fig8.png',
@@ -63,7 +62,6 @@ NAME = {
     'fig13_充电时间模型验证.png': 'fig13.png',
     'fig14_预测误差分布.png': 'fig14.png',
     'fig15_策略对比.png': 'fig15.png',
-    'fig16_C2寿命分布.png': 'fig16.png',
     'fig17_充电时间分析.png': 'fig17.png',
     'fig18_回归残差诊断.png': 'fig18.png',
     'fig19_早期SOH演化.png': 'fig19.png',
@@ -205,28 +203,6 @@ for ax, v in zip(axes.flat, Xnames):
 fig.suptitle('偏回归图（控制其他变量与批次后，各参数与寿命的关系）', fontsize=13, y=0.99)
 fig.tight_layout()
 save(fig, 'fig4_偏回归图.png')
-
-# ================= 图5: 寿命热力图 (响应面) =================
-Rr = ols_coef(X, y)
-b = Rr
-Tmean = std['T'].mean()
-def pred_surface(c1, q1, c2):
-    return 10 ** (b[0] + b[1]*c1 + b[2]*q1 + b[3]*c2 + b[4]*Tmean)
-grid_c1 = np.linspace(1, 8, 70); grid_q1 = np.linspace(5, 80, 70)
-fig, axes = plt.subplots(1, 2, figsize=(11.5, 4.2))
-for ax, c2 in zip(axes, [3.6, 6.0]):
-    Z = np.array([[pred_surface(c, q, c2) for q in grid_q1] for c in grid_c1])
-    cs = ax.contourf(grid_c1, grid_q1, Z.T, levels=22, cmap='Blues')
-    ax.set_xlabel('$C_1$ (C)', fontsize=10); ax.set_ylabel('$Q_1$ (%)', fontsize=10)
-    ax.set_title(f'$C_2$ = {c2}C  预测寿命', fontsize=11)
-    for _, row in std[std['C2_C'] == c2].iterrows():
-        ax.plot(row['C1_C'], row['Q1_pct'], 'o', ms=4, mfc='none', mec=INK, mew=0.7)
-    style_ax(ax)
-    cb = fig.colorbar(cs, ax=ax, pad=0.02)
-    cb.set_label('预测循环寿命', fontsize=9)
-fig.suptitle('策略参数空间上的寿命预测（log$_{10}$寿命 ~ C1+Q1+C2+T）', fontsize=13, y=1.04)
-fig.tight_layout()
-save(fig, 'fig5_寿命热力图.png')
 
 # ================= 图6: 预测 vs 实际 (k=100, GBM) =================
 qp = pd.read_csv(os.path.join(BASE, 'data_processed', 'q3_predictions.csv'))
@@ -457,24 +433,6 @@ fig.suptitle('推荐策略与典型策略对比', fontsize=13, y=1.0)
 fig.tight_layout()
 save(fig, 'fig15_策略对比.png')
 
-# ================= 图16: 按 C2 档位的寿命分布 =================
-std2 = std.copy()
-std2['C2档'] = pd.cut(std2['C2_C'], bins=[2.9, 3.6, 4.4, 5.2, 6.1],
-                      labels=['3.0~3.6', '3.7~4.4', '4.5~5.2', '5.3~6.0'])
-fig, ax = plt.subplots(figsize=(6.8, 4.8))
-groups = [std2[std2['C2档'] == g]['cycle_life'].values for g in ['3.0~3.6', '3.7~4.4', '4.5~5.2', '5.3~6.0']]
-bp = ax.boxplot(groups, patch_artist=True, widths=0.5,
-                medianprops=dict(color='white', lw=1.4),
-                whiskerprops=dict(color=MUTED, lw=1), capprops=dict(color=MUTED, lw=1))
-for patch, c in zip(bp['boxes'], SEQB[1::2]):
-    patch.set_facecolor(c); patch.set_alpha(0.85)
-ax.set_xticklabels(['3.0~3.6', '3.7~4.4', '4.5~5.2', '5.3~6.0'], fontsize=10)
-ax.set_xlabel('$C_2$ 档位 (C)'); ax.set_ylabel('循环寿命')
-ax.set_title(f'不同 $C_2$ 档位下的循环寿命分布（standard，n={len(std)}）', fontsize=12)
-style_ax(ax)
-fig.tight_layout()
-save(fig, 'fig16_C2寿命分布.png')
-
 # ================= 图17: 充电时间分析 =================
 std2c = std.copy()
 std2c['C2档'] = pd.cut(std2c['C2_C'], bins=[2.9, 3.6, 4.4, 5.2, 6.1],
@@ -675,4 +633,4 @@ for k, (t1, t2, col) in enumerate(steps23):
 fig.tight_layout()
 save(fig, 'fig23_预测流程.png')
 
-print('\n全部 23 张图已重绘完成')
+print('\n全部论文图表已重绘完成')
