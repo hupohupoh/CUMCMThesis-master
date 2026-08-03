@@ -1,0 +1,83 @@
+\documentclass{cumcmthesis}
+% 电子版提交时改为：
+% \documentclass[withoutpreface,bwprint]{cumcmthesis}
+
+\title{论文题目}
+\tihao{A}                       % 题号：A/B/C/D/E
+\baominghao{000000000000}       % 12 位报名参赛队号
+\schoolname{学校全称}
+\membera{队员一}
+\memberb{队员二}
+\memberc{队员三}
+\supervisor{指导教师}
+\yearinput{2026}
+\monthinput{09}
+\dayinput{13}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+在此填写摘要。摘要内容应包含研究对象、主要方法、关键结果与结论，原则上不超过一页。
+
+\keywords{关键词一\quad 关键词二\quad 关键词三}
+\end{abstract}
+
+% 2026 年规范要求正文不要目录，请勿启用 \tableofcontents。
+
+\section{问题重述}
+在此准确、简洁地重述赛题。
+
+\section{问题分析}
+在此说明研究思路、问题分解和总体技术路线。
+
+\section{模型假设}
+\begin{enumerate}
+    \item 假设一；
+    \item 假设二。
+\end{enumerate}
+
+\section{符号说明}
+\begin{table}[H]
+    \centering
+    \caption{主要符号说明}
+    \begin{tabular}{cc}
+        \toprule[0.8pt]
+        符号 & 含义 \\
+        \midrule[0.5pt]
+        $x$ & 示例变量 \\
+        \bottomrule[0.8pt]
+    \end{tabular}
+\end{table}
+
+\section{模型建立与求解}
+在此给出模型、算法、求解过程和结果。
+
+\section{模型检验与分析}
+在此给出误差分析、敏感性分析、稳健性检验或其他验证。
+
+\section{模型评价与推广}
+在此说明模型的优点、局限与可推广方向。
+
+\begin{thebibliography}{9}
+    \bibitem{ref1}
+    作者.
+    \newblock 文献题目.
+    \newblock 出版信息, 年份.
+\end{thebibliography}
+
+\section*{人工智能工具使用声明}
+请依据竞赛期间有效的全国组委会规定填写；未使用时也应按规定作出明确声明。
+
+\begin{appendices}
+
+\section{支撑材料文件列表}
+请逐项列出文件名、格式及用途。若没有支撑材料，请按官方规范明确说明“本论文没有支撑材料”。
+
+\section{源程序}
+请附上全部完整、可运行的源程序。若没有使用程序，请按官方规范明确说明“本论文没有用到程序”。
+
+\end{appendices}
+
+\end{document}

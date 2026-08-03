@@ -1,24 +1,24 @@
 {
-  // 让 LaTeX Workshop 在 Windows 上直接调用 WSL 里的 TeX Live 编译。
-  // 原理：wsl.exe 会自动把工作目录翻译成 /mnt/c/...，所以用相对文件名 main.tex，
-  //       避免把带反斜杠的 Windows 路径传给 WSL（会丢失反斜杠）。
-  // 注意：如果以后主文件不叫 main.tex，需要同步改这里。
+  // 直接用 Windows 侧 TeX Live 编译（WSL 里未安装 TeX，无法构建）。
+  // 若以后改用了别的 TeX 发行版，需同步调整下面工具的 command 路径。
   "latex-workshop.latex.recipes": [
     {
-      "name": "WSL-xelatex",
-      "tools": ["wsl-latexmk"]
+      "name": "Windows-latexmk",
+      "tools": ["win-latexmk"]
     }
   ],
-  "latex-workshop.latex.recipe.default": "WSL-xelatex",
+  "latex-workshop.latex.recipe.default": "Windows-latexmk",
   "latex-workshop.latex.build.enableMagicComments": false,
   "latex-workshop.latex.tools": [
     {
-      "name": "wsl-latexmk",
-      "command": "wsl",
+      "name": "win-latexmk",
+      "command": "latexmk",
       "args": [
-        "bash",
-        "-lc",
-        "latexmk -xelatex -synctex=1 -interaction=nonstopmode -file-line-error main.tex"
+        "-xelatex",
+        "-synctex=1",
+        "-interaction=nonstopmode",
+        "-file-line-error",
+        "main.tex"
       ]
     }
   ]
