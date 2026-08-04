@@ -78,72 +78,7 @@
 
 \begin{figure}[htbp]
 \centering
-\resizebox{\textwidth}{!}{%
-\begin{tikzpicture}[
-    node distance=1.6cm,
-    box/.style={
-        rectangle, rounded corners=6pt, draw=#1!60, line width=1.0pt,
-        minimum width=3.2cm, minimum height=3.6cm,
-        fill=white, inner sep=0pt, align=center
-    },
-    bar/.style={
-        rectangle, rounded corners=4pt, fill=#1,
-        minimum width=2.8cm, minimum height=0.35cm, anchor=north
-    },
-    circ/.style={
-        circle, draw=white, fill=#1, line width=1.2pt,
-        minimum size=0.6cm, inner sep=0pt, font=\bfseries\color{white}
-    },
-    arrow/.style={
-        ->, >=stealth, line width=1.8pt, color=#1!50
-    },
-]
-% Colors from paper: BLUE #2a78d6, ORANGE #eb6834, AQUA #1baf7a, VIOLET #4a3aa7
-\definecolor{c1}{HTML}{2a78d6}
-\definecolor{c2}{HTML}{eb6834}
-\definecolor{c3}{HTML}{1baf7a}
-\definecolor{c4}{HTML}{4a3aa7}
-
-% Node 1: Data
-\node[box=c1] (n1) at (0,0) {};
-\node[bar=c1] at (n1.north) {};
-\node[circ=c1] at ([yshift=-0.42cm]n1.north) {1};
-\node[font=\bfseries\Large] at ([yshift=-1.05cm]n1.north) {数据整理};
-\node[font=\small\color{c1!80!black}] at ([yshift=-1.55cm]n1.north) {问题一};
-\node[font=\footnotesize, text width=2.6cm, align=center, color=black!60] at ([yshift=-2.8cm]n1.north) {策略参数·寿命·SOH\\异常清洗·单位校准};
-
-% Node 2: Model
-\node[box=c2, right=of n1, xshift=1.2cm] (n2) {};
-\node[bar=c2] at (n2.north) {};
-\node[circ=c2] at ([yshift=-0.42cm]n2.north) {2};
-\node[font=\bfseries\Large] at ([yshift=-1.05cm]n2.north) {量化建模};
-\node[font=\small\color{c2!80!black}] at ([yshift=-1.55cm]n2.north) {问题二};
-\node[font=\footnotesize, text width=2.6cm, align=center, color=black!60] at ([yshift=-2.8cm]n2.north) {多变量回归·剂量模型\\批次差异·交互效应};
-
-% Node 3: Predict
-\node[box=c3, right=of n2, xshift=1.2cm] (n3) {};
-\node[bar=c3] at (n3.north) {};
-\node[circ=c3] at ([yshift=-0.42cm]n3.north) {3};
-\node[font=\bfseries\Large] at ([yshift=-1.05cm]n3.north) {寿命预测};
-\node[font=\small\color{c3!80!black}] at ([yshift=-1.55cm]n3.north) {问题三};
-\node[font=\footnotesize, text width=2.6cm, align=center, color=black!60] at ([yshift=-2.8cm]n3.north) {早期特征·GBM模型\\5折x8次交叉验证};
-
-% Node 4: Optimize
-\node[box=c4, right=of n3, xshift=1.2cm] (n4) {};
-\node[bar=c4] at (n4.north) {};
-\node[circ=c4] at ([yshift=-0.42cm]n4.north) {4};
-\node[font=\bfseries\Large] at ([yshift=-1.05cm]n4.north) {策略优化};
-\node[font=\small\color{c4!80!black}] at ([yshift=-1.55cm]n4.north) {问题四};
-\node[font=\footnotesize, text width=2.6cm, align=center, color=black!60] at ([yshift=-2.8cm]n4.north) {充电时间模型·Pareto\\推荐策略·外推边界};
-
-% Arrows between nodes
-\draw[arrow=c1] (n1.east) -- (n2.west);
-\draw[arrow=c2] (n2.east) -- (n3.west);
-\draw[arrow=c3] (n3.east) -- (n4.west);
-
-
-\end{tikzpicture}%
-}
+\includegraphics[width=1.0\textwidth]{figures/fig_flowchart.pdf}
 \caption{本文研究流程（四问题递进）}
 \label{fig:fig20}
 \end{figure}
@@ -491,7 +426,7 @@ $Q_1$ & 方向依赖 $C_1-C_2$ & 2$\sim$80\% & 方向依赖 $C_1-C_2$ \\
 由第 \ref{sec:phys} 节的物理模型可直接回答这一问题：剂量模型中两个阶段的单位电量损伤系数 $|m_2|=0.424$ 比 $|m_1|=0.367$ 高约 16\%，且拟合得到的 $f(\mathrm{SOC})$ 在中高 SOC 区间显著更高（$f(80\%)=1.34$ vs $f(0)=1.00$），即相同电量在中高 SOC 区间造成的寿命损伤显著大于低 SOC 区间。因此，不同 SOC 区间内高倍率充电对寿命衰减的影响存在显著差异，中高 SOC 区间的高倍率充电是寿命衰减的主导因素。
 
 \subsection{各因素影响程度排序}\label{sec:imp}
-
+\subsubsection{多变量线性回归}
 为量化各策略参数的相对重要性，以含批次差异的多变量线性回归为基准：
 \begin{equation}\label{eq:reg}
 \log_{10}(L) = \beta_0 + \beta_1 C_1 + \beta_2 Q_1 + \beta_3 C_2 + \beta_4 T + \beta_5 \mathbb{1}_{\mathrm{batch2}} + \varepsilon.
@@ -514,7 +449,7 @@ $C_2$（第二阶段倍率） & $-0.039$ & 0.017 & $-2.27$ & 0.026 \\
 \bottomrule
 \end{tabular}
 \end{table}
-
+\subsubsection{留一变量分析}
 采用“留一变量 $R^2$ 变化”评估相对重要性（表 \ref{tab:imp}）。各策略参数的 $\Delta R^2$ 排序为：$T$（0.053）$>$ $Q_1$（0.026）$>$ $C_2$（0.021）$>$ $C_1$（0.006），批次差异占 0.234。偏相关系数（控制其余变量与批次）显示充电时间 $T$（$+0.376$）、$Q_1$（$+0.271$）与 $C_2$（$-0.249$）为最重要的策略维度（图 \ref{fig:fig4}）。
 
 \begin{table}[htbp]
@@ -770,7 +705,7 @@ T = 35.51\cdot\frac{Q_1/100}{C_1} + 35.00\cdot\frac{(80-Q_1)/100}{C_2} + 5.45,\q
 
 \begin{figure}[htbp]
 \centering
-\includegraphics[width=0.80\textwidth]{figures/fig13.png}
+\includegraphics[width=0.70\textwidth]{figures/fig13.png}
 \caption{充电时间校准模型验证（预测 vs 实测）}
 \label{fig:fig13}
 \end{figure}
@@ -1002,6 +937,8 @@ $C_2$ & $\pm0.4$C & 13.3（$0\%$） & 1794（$0\%$） \\
 \begin{thebibliography}{9}
 \bibitem{ref1} Severson K A, Attia P M, Jin N, et al. Data-driven prediction of battery cycle life before capacity degradation[J]. Nature Energy, 2019, 4(5): 383-391.
 \end{thebibliography}
+
+\newpage
 
 % ==================== 附录 ====================
 \begin{appendices}
