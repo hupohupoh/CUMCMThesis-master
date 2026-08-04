@@ -65,10 +65,8 @@ NAME = {
     'fig17_充电时间分析.png': 'fig17.png',
     'fig18_回归残差诊断.png': 'fig18.png',
     'fig19_早期SOH演化.png': 'fig19.png',
-    'fig20_方法流程.png': 'fig20.png',
     'fig21_批次差异.png': 'fig21.png',
     'fig22_充电时间演化.png': 'fig22.png',
-    'fig23_预测流程.png': 'fig23.png',
 }
 
 def save(fig, cn):
@@ -475,53 +473,6 @@ style_ax(ax)
 fig.tight_layout()
 save(fig, 'fig19_早期SOH演化.png')
 
-# ================= 图20: 方法流程示意图 (简洁现代风格) =================
-VIOLET2 = '#4a3aa7'
-fig, ax = plt.subplots(figsize=(12, 4.0))
-ax.set_xlim(0, 1); ax.set_ylim(0, 1); ax.axis('off')
-steps = [
-    ('数据整理', '问题一', '策略参数 · 寿命 · SOH\n异常清洗 · 单位校准', BLUE),
-    ('量化建模', '问题二', '多变量回归 · 剂量模型\n批次差异 · 交互项', ORANGE),
-    ('寿命预测', '问题三', '早期特征 · GBM\n5折×8次交叉验证', AQUA),
-    ('策略优化', '问题四', '充电时间模型 · Pareto\n推荐策略 · 外推边界', VIOLET2),
-]
-xw, xh, ys = 0.18, 0.55, 0.28
-gap = 0.04
-total_w = 4*xw + 3*gap
-xs = [(1-total_w)/2 + i*(xw+gap) for i in range(4)]
-for k, (title, prob, desc, col) in enumerate(steps):
-    x0 = xs[k]
-    # 卡片主体 — 纯白底 + 细边框
-    ax.add_patch(FancyBboxPatch((x0, ys), xw, xh,
-                 boxstyle='round,pad=0.008,rounding_size=0.015',
-                 fc='white', ec='#d0d0d0', lw=1.0, zorder=2))
-    # 左侧细色条
-    ax.add_patch(Rectangle((x0, ys+0.04), 0.008, xh-0.08, fc=col, ec='none', zorder=3))
-    # 编号
-    ax.text(x0 + 0.035, ys + xh - 0.08, str(k+1), ha='center', va='center',
-            fontsize=16, color=col, fontweight='bold', zorder=4)
-    # 标题
-    ax.text(x0 + xw/2, ys + xh - 0.16, title, ha='center', va='center',
-            fontsize=18, color=INK, fontweight='bold', zorder=4)
-    # 问题标识
-    ax.text(x0 + xw/2, ys + xh - 0.28, prob, ha='center', va='center',
-            fontsize=13, color=col, fontweight='bold', zorder=4)
-    # 细线
-    ax.plot([x0+0.06, x0+xw-0.06], [ys+xh-0.34, ys+xh-0.34], color='#e8e8e8', lw=0.6, zorder=4)
-    # 描述
-    ax.text(x0 + xw/2, ys + xh/2 - 0.06, desc, ha='center', va='center',
-            fontsize=13, color=MUTED, linespacing=1.6, zorder=4)
-    # 连接箭头
-    if k < 3:
-        ax.annotate('', xy=(xs[k+1]-0.006, ys+xh/2), xytext=(x0+xw+0.006, ys+xh/2),
-                    arrowprops=dict(arrowstyle='->', color='#b0b0b0', lw=2.2, mutation_scale=22))
-# 底部闭环箭头 + 注记
-ax.plot([0.2, 0.8], [0.10, 0.10], color='#d0d0d0', lw=0.6)
-ax.text(0.5, 0.045, '前一问题的输出 → 后一问题的输入，形成闭环', ha='center',
-        fontsize=14, color=MUTED)
-fig.tight_layout()
-save(fig, 'fig20_方法流程.png')
-
 # ================= 图21: 批次差异可视化 (策略模型残差按批次) =================
 # 用剂量模型预测寿命, 残差按批次箱线图, 直观展示批次差异
 b_l = q4['b_all']
@@ -563,40 +514,5 @@ ax.legend(frameon=False, fontsize=14, loc='upper left')
 style_ax(ax)
 fig.tight_layout()
 save(fig, 'fig22_充电时间演化.png')
-
-# ================= 图23: 问题三预测流程 (简洁现代风格) =================
-fig, ax = plt.subplots(figsize=(12, 3.0))
-ax.set_xlim(0, 1); ax.set_ylim(0, 1); ax.axis('off')
-steps23 = [
-    ('早期循环数据\n（前 k 个循环）', 'SOH · 容量 · 充电时间', BLUE),
-    ('特征提取', '斜率 · 波动 · 潜伏时间\n充电时间漂移', ORANGE),
-    ('GBM 回归模型', '5折x8次交叉验证\nlog10(寿命) 目标', AQUA),
-    ('预测寿命', 'L = 10^y\n达 80% SOH 循环数', VIOLET2),
-]
-xw, xh, ys = 0.18, 0.55, 0.26
-gap = 0.04
-total_w = 4*xw + 3*gap
-xs = [(1-total_w)/2 + i*(xw+gap) for i in range(4)]
-for k, (t1, t2, col) in enumerate(steps23):
-    x0 = xs[k]
-    # 白底卡片 + 细边框
-    ax.add_patch(FancyBboxPatch((x0, ys), xw, xh, boxstyle='round,pad=0.008,rounding_size=0.015',
-                 fc='white', ec='#d0d0d0', lw=1.0, zorder=2))
-    # 左侧细色条
-    ax.add_patch(Rectangle((x0, ys+0.04), 0.008, xh-0.08, fc=col, ec='none', zorder=3))
-    # 标题
-    ax.text(x0+xw/2, ys+xh*0.70, t1, ha='center', va='center',
-            fontsize=17, color=INK, fontweight='bold', zorder=4)
-    # 细线
-    ax.plot([x0+0.05, x0+xw-0.05], [ys+xh*0.42, ys+xh*0.42], color='#e8e8e8', lw=0.6, zorder=4)
-    # 描述
-    ax.text(x0+xw/2, ys+xh*0.18, t2, ha='center', va='center',
-            fontsize=13, color=MUTED, linespacing=1.5, zorder=4)
-    # 箭头
-    if k < 3:
-        ax.annotate('', xy=(xs[k+1]-0.006, ys+xh/2), xytext=(x0+xw+0.006, ys+xh/2),
-                    arrowprops=dict(arrowstyle='->', color='#b0b0b0', lw=2.2, mutation_scale=22))
-fig.tight_layout()
-save(fig, 'fig23_预测流程.png')
 
 print('\n全部论文图表已重绘完成')

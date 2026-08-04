@@ -1,0 +1,79 @@
+% !TEX program = xelatex
+% 支撑材料：AI工具使用详情（对应论文“AI工具使用声明”）
+\documentclass[UTF8]{ctexart}
+\setCJKfamilyfont{song}[AutoFakeBold]{simsun.ttc}
+\newcommand*{\song}{\CJKfamily{song}}
+\setmainfont{Times New Roman}
+\usepackage[margin=2.6cm]{geometry}
+\usepackage{titlesec}
+\usepackage{enumitem}
+\titleformat{\section}{\zihao{4}\bfseries\song}{\thesection}{0.6em}{}
+\renewcommand{\arraystretch}{1.4}
+
+\begin{document}
+
+\begin{center}
+{\zihao{2}\bfseries\song AI工具使用详情}
+\end{center}
+
+本文件为参赛队对竞赛过程中 AI 工具使用情况的详细说明，对应论文正文参考文献之前的“AI工具使用声明”。
+
+\section{所用AI工具名称、版本或型号}
+
+\begin{itemize}[leftmargin=1.6em,itemsep=2pt]
+  \item 工具名称：Anthropic Claude Code（Claude Code，Anthropic 公司推出的 AI 编程助手，集成于 VS Code 编辑器环境）；
+  \item 底层模型：deepseek-v4-flash
+  \item 使用方式：通过 VS Code 扩展以对话式交互调用，本地运行所生成的代码与脚本；
+  \item 其他：未使用其他生成式 AI 工具。
+\end{itemize}
+
+\section{具体使用目的和环节}
+
+AI 工具贯穿论文的研究流程，主要使用环节如下：
+
+\begin{itemize}[leftmargin=1.6em,itemsep=2pt]
+  \item \textbf{数据处理}：协助编写数据提取（data\_extract.py）、电池筛选（build124.py）等脚本，完成原始 HDF5 数据解析、异常循环清洗、延续电池合并与 124 电池集构建；
+  \item \textbf{建模分析}：协助实现问题一至问题四的分析脚本（analysis1.py$\sim$analysis4.py），包括多变量回归、剂量模型、交互项检验、GBM 寿命预测与多目标策略优化，以及 PyBaMM 电化学仿真脚本；
+  \item \textbf{图表制作}：生成全部论文图表脚本（make\_figures.py，fig1$\sim$fig23）与 TikZ 流程图；
+  \item \textbf{论文排版}：LaTeX（cumcmthesis 模板）排版，包括数学公式、表格、参考文献格式与代码清单；
+  \item \textbf{语言润色}：摘要与正文的中文表达润色与规范化。
+\end{itemize}
+
+\section{主要提示方式与使用过程说明}
+
+\subsection{提示方式}
+
+以中文自然语言向 AI 助手描述任务目标、数据口径与期望输出，AI 生成代码或文本后由队员审查；若结果与预期不符，通过追加追问、补充约束条件迭代修改，直至满足要求。
+
+\subsection{典型交互示例}
+
+\textbf{示例一（图表生成）：}
+\begin{quote}
+队员：“请基于 battery\_table\_124.csv 生成偏回归图，横轴为各策略参数（$C_1$、$Q_1$、$C_2$、$T$）残差化后的值，纵轴为 $\log_{10}$ 寿命残差，将绘图代码加入 make\_figures.py 并运行。”
+
+AI：生成绘图代码并运行，输出 fig4 偏回归图，同时给出各参数的偏相关系数。
+
+队员核验：核对图中各参数残差相关方向与正文表 3 数值一致后采纳。
+\end{quote}
+
+\textbf{示例二（建模调试）：}
+\begin{quote}
+队员：“GBM 预测脚本在 5 折$\times$8 次重复交叉验证下 MAPE 偏高，请检查特征构造是否混入了未来信息，并修正。”
+
+AI：检查特征构造逻辑，指出充电时间漂移特征的计算窗口问题，修正后 MAPE 降至与论文一致的水平。
+
+队员核验：复跑脚本并与正文表 6 结果核对后采纳。
+\end{quote}
+
+\section{对AI输出的采纳、人工修改和核验的主要情况（语言润色除外）}
+
+\begin{itemize}[leftmargin=1.6em,itemsep=2pt]
+  \item AI 生成的代码均由队员逐段审查、理解后再运行，不使用未经理解的黑箱输出；
+  \item 数据分析结果与论文正文的表格、数值逐项核对（如寿命预测 MAPE=14.7\%、推荐策略寿命 3868 次等），确认一致后方采纳；
+  \item 图表与流程图的数据口径（124 电池集、standard 84 电池集）经队员人工确认，确保与正文口径一致；
+  \item 涉及机理判断的结论（如中高 SOC 区间单位电量损伤权重更高、剂量模型的系数符号）由队员结合电化学文献与物理意义人工核验；
+  \item AI 生成代码中不符合需求的部分由队员手动修改，如坐标轴标签、配色、表头格式与数值精度；
+  \item 论文全文最终版本由队员人工审校后定稿。
+\end{itemize}
+
+\end{document}

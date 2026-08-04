@@ -933,6 +933,10 @@ $C_2$ & $\pm0.4$C & 13.3（$0\%$） & 1794（$0\%$） \\
 
 \textbf{展望。}本框架可进一步：将温度、内阻等协变量纳入剂量模型以解释个体差异；引入电化学机理模型提升长期 SOH 预测外推能力；将优化推广到任意 SOC 分段并叠加温度、电压约束，得到更贴近工程实际的充电方案。
 
+% ==================== AI工具使用声明 ====================
+\section*{AI工具使用声明}
+本参赛队在竞赛过程中使用了AI工具，主要用于代码编写与调试、图表制作、论文排版与语言润色，详细使用情况见支撑材料。
+
 % ==================== 参考文献 ====================
 \begin{thebibliography}{9}
 \bibitem{ref1} Severson K A, Attia P M, Jin N, et al. Data-driven prediction of battery cycle life before capacity degradation[J]. Nature Energy, 2019, 4(5): 383-391.
@@ -955,23 +959,29 @@ $C_2$ & $\pm0.4$C & 13.3（$0\%$） & 1794（$0\%$） \\
 \toprule
 文件名 & 内容 & 用途 \\
 \midrule
-data\_1.mat / data\_2.mat / data\_3.mat & 三个批次原始循环老化数据 & 数据来源 \\
 data\_extract.py & 从 HDF5 提取电池级汇总表 & 数据整理 \\
 build124.py & 合并延续电池并筛选 124 个有效电池 & 数据整理 \\
 analysis1.py & 问题一数据整理与初步分析 & 问题一 \\
 analysis2.py & 问题二回归/剂量/交互分析 & 问题二 \\
 analysis3.py & 问题三特征提取与预测 & 问题三 \\
 analysis4.py & 问题四充电时间/寿命模型与优化 & 问题四 \\
+pybamm\_calibrate.py & PyBaMM A123 参数标定 & 机理验证 \\
+pybamm\_q2\_mechanism.py & PyBaMM 析锂机理验证（SOC 区间） & 机理验证 \\
+pybamm\_q4\_optimize.py & PyBaMM 多段充电策略优化 & 问题四 \\
 make\_figures.py & 全部论文图表生成脚本 & 图表 \\
+AI工具使用详情.pdf & AI工具名称、用途、过程与核验 & 合规声明 \\
 battery\_table\_124.csv & 124 电池汇总表 & 中间数据 \\
 每循环明细表\_124.csv & 逐循环 SOH/容量/充电时间 & 中间数据 \\
+a123\_calibrated\_params.json & PyBaMM 标定参数集 & 中间数据 \\
 \bottomrule
 \end{tabular}
 \end{table}
 
+\noindent 注：data\_1.mat、data\_2.mat、data\_3.mat 为赛题提供的原始循环老化数据，由竞赛组委会提供，不随支撑材料提交。
+
 \section{源程序}
 
-以下为主要分析源程序（Python）。运行环境：Python 3.10+，依赖 numpy、pandas、scipy、matplotlib、scikit-learn、h5py。注意脚本中数据路径需按实际位置修改。figures/ 目录下的论文图表均由 make\_figures.py 一次性重绘生成。
+以下为主要分析源程序（Python）。运行环境：Python 3.10+，依赖 numpy、pandas、scipy、matplotlib、scikit-learn、h5py；其中 pybamm\_*.py 三个脚本还需安装 PyBaMM 包。注意脚本中数据路径需按实际位置修改。figures/ 目录下的论文图表均由 make\_figures.py 一次性重绘生成。
 
 \subsection{data\_extract.py —— 数据提取}
 \lstinputlisting[language=Python]{code/data_extract.py}

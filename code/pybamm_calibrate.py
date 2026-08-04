@@ -19,7 +19,7 @@ sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
 # ============ 路径配置 ============
 BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # complete_solution_v2/
 PROC = os.path.join(BASE, 'data_processed')
-DATA_SRC = os.path.join(os.path.dirname(BASE), 'data_processed')   # 复用 complete_solution 的清洗数据
+DATA_SRC = os.path.join(BASE, 'data_processed')   # 仓库内 data_processed（含 124 csv）
 os.makedirs(PROC, exist_ok=True)
 
 print("="*60)
